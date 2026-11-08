@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000" role="presentation">
+  <defs>
+    <!-- Base field: deep navy, brand-adjacent to Theme-8 #0A6E7C (teal, 2026-11-05) -->
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#06181C"/>
+      <stop offset="45%"  stop-color="#0A2E33"/>
+      <stop offset="100%" stop-color="#0E3E45"/>
+    </linearGradient>
+
+    <!-- Operations glow, anchored on the data hub -->
+    <radialGradient id="opsGlow" cx="0.72" cy="0.5" r="0.62">
+      <stop offset="0%"   stop-color="#0DB9C6" stop-opacity=".34"/>
+      <stop offset="45%"  stop-color="#0B3A40" stop-opacity=".18"/>
+      <stop offset="100%" stop-color="#06181C" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Text scrim: guarantees headline contrast over the artwork -->
+    <linearGradient id="scrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"  stop-color="#051418" stop-opacity=".94"/>
+      <stop offset="38%" stop-color="#06181C" stop-opacity=".72"/>
+      <stop offset="68%" stop-color="#06181C" stop-opacity=".22"/>
+      <stop offset="100%" stop-color="#06181C" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Telemetry matrix -->
+    <pattern id="matrix" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="1.5" r="1.1" fill="#0EB9CC" fill-opacity=".28"/>
+    </pattern>
+
+    <!-- Governance lattice -->
+    <pattern id="lattice" width="160" height="160" patternUnits="userSpaceOnUse">
+      <path d="M0 0 H160 M0 80 H160 M0 0 V160 M80 0 V160"
+            fill="none" stroke="#3CCFD8" stroke-opacity=".07" stroke-width="1"/>
+    </pattern>
+
+    <linearGradient id="streamA" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#0EB9CC" stop-opacity="0"/>
+      <stop offset="50%"  stop-color="#0EB9CC" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="#0EB9CC" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="streamB" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#22C4CF" stop-opacity="0"/>
+      <stop offset="55%"  stop-color="#22C4CF" stop-opacity=".42"/>
+      <stop offset="100%" stop-color="#22C4CF" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="sweepEdge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#0EB9CC" stop-opacity=".34"/>
+      <stop offset="100%" stop-color="#0EB9CC" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="sweep" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#0EB9CC" stop-opacity=".10"/>
+      <stop offset="100%" stop-color="#0EB9CC" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="softer" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+  </defs>
+
+  <!-- ===== Ground ===== -->
+  <rect width="1600" height="1000" fill="url(#field)"/>
+  <rect width="1600" height="1000" fill="url(#lattice)"/>
+  <rect width="1600" height="1000" fill="url(#matrix)" opacity=".5"/>
+  <rect width="1600" height="1000" fill="url(#opsGlow)"/>
+
+  <!-- ===== Data hub: concentric rings centred on the open-data cluster ===== -->
+  <g transform="translate(1120 500)" fill="none" stroke="#3CCFD8">
+    <circle r="110" stroke-opacity=".30"/>
+    <circle r="190" stroke-opacity=".22"/>
+    <circle r="275" stroke-opacity=".15"/>
+    <circle r="368" stroke-opacity=".10"/>
+    <circle r="470" stroke-opacity=".06"/>
+    <circle r="190" stroke="#0EB9CC" stroke-opacity=".30"
+            stroke-dasharray="3 13" stroke-linecap="round"/>
+    <circle r="368" stroke="#0EB9CC" stroke-opacity=".18"
+            stroke-dasharray="2 20" stroke-linecap="round"/>
+    <g stroke="#72DEE3" stroke-opacity=".26" stroke-linecap="round">
+      <path d="M0 -470 V-446"/><path d="M0 470 V446"/>
+      <path d="M-470 0 H-446"/><path d="M470 0 H446"/>
+      <path d="M332 -332 L315 -315"/><path d="M-332 332 L-315 315"/>
+      <path d="M332 332 L315 315"/><path d="M-332 -332 L-315 -315"/>
+    </g>
+    <!-- detection sweep -->
+    <path d="M0 0 L368 0 A368 368 0 0 1 256 264 Z" fill="url(#sweep)" stroke="none"/>
+    <path d="M80 0 L360 0" stroke="url(#sweepEdge)" stroke-width="1.5"/>
+  </g>
+
+  <!-- ===== Open-data hub cluster ===== -->
+  <g transform="translate(1120 500)">
+    <ellipse cx="0" cy="22" rx="92" ry="13" fill="#0EB9CC" opacity=".10" filter="url(#soft)"/>
+    <!-- connecting links -->
+    <g stroke="#72DEE3" stroke-opacity=".55" stroke-width="1.6" fill="none" stroke-linecap="round">
+      <path d="M0 0 L-78 -54"/>
+      <path d="M0 0 L86 -30"/>
+      <path d="M0 0 L-40 88"/>
+      <path d="M0 0 L70 78"/>
+      <path d="M-78 -54 L86 -30"/>
+      <path d="M86 -30 L70 78"/>
+      <path d="M-40 88 L70 78"/>
+    </g>
+    <!-- central hub -->
+    <circle cx="0" cy="0" r="26" fill="#0DB9C6" opacity=".18" filter="url(#soft)"/>
+    <circle cx="0" cy="0" r="13" fill="none" stroke="#A8ECEF" stroke-opacity=".9" stroke-width="2.4"/>
+    <circle cx="0" cy="0" r="4.6" fill="#0EB9CC"/>
+    <!-- satellite nodes -->
+    <g fill="#22C4CF">
+      <circle cx="-78" cy="-54" r="6" opacity=".92"/>
+      <circle cx="86"  cy="-30" r="6" opacity=".92"/>
+      <circle cx="-40" cy="88"  r="5.5" opacity=".9"/>
+      <circle cx="70"  cy="78"  r="5.5" opacity=".9"/>
+    </g>
+    <g fill="none" stroke="#22C4CF" stroke-opacity=".34">
+      <circle cx="-78" cy="-54" r="14"/>
+      <circle cx="86"  cy="-30" r="12"/>
+    </g>
+    <!-- one node under active sync: the only warm accent in the field -->
+    <circle cx="86" cy="-30" r="22" fill="#FF6B00" opacity=".14" filter="url(#softer)"/>
+    <circle cx="86" cy="-30" r="11" fill="none" stroke="#FF9A4D" stroke-opacity=".62" stroke-width="1.4"/>
+    <circle cx="86" cy="-30" r="4.6" fill="#FF9A4D"/>
+  </g>
+
+  <!-- ===== Data streams ===== -->
+  <g stroke-width="1.4" fill="none">
+    <path d="M470 196 H1430" stroke="url(#streamA)" opacity=".85"/>
+    <path d="M380 372 H1200" stroke="url(#streamB)" opacity=".75"/>
+    <path d="M500 638 H1530" stroke="url(#streamB)" opacity=".62"/>
+    <path d="M430 812 H1350" stroke="url(#streamA)" opacity=".5"/>
+  </g>
+
+  <!-- ===== Governance marks (abstract, non-textual) ===== -->
+  <g stroke="#72DEE3" stroke-opacity=".16" fill="none" stroke-width="1.2">
+    <path d="M128 886 h54 M128 886 v-54"/>
+    <path d="M1472 118 h-54 M1472 118 v54"/>
+  </g>
+
+  <!-- ===== Text scrim — applied last so headline contrast is guaranteed ===== -->
+  <rect width="1600" height="1000" fill="url(#scrim)"/>
+</svg>

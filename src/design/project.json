@@ -1,0 +1,10 @@
+{
+  "project": "OpenData",
+  "brand": "teal",
+  "editableLabelColon": true,
+  "filterLabelColon": true,
+  "detailLabelColon": true,
+  "source": "DESIGN.md",
+  "sourceStatus": "existing-approved-project-specification",
+  "darkStatus": "project-extension"
+}

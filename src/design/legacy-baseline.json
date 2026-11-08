@@ -1,0 +1,64 @@
+{
+  "captured": "2026-11-07",
+  "source": "Snapshot of existing source before design-system rollout",
+  "policy": "Historical occurrences remain visible. Adding allowances requires explicit review.",
+  "fingerprints": {},
+  "resolvedAt": "2026-11-07",
+  "resolvedFindings": [
+    {
+      "file": "src/layouts/GlobalAssistant.vue",
+      "rule": "literal-color",
+      "snippet": "box-shadow: 0 4px 12px rgba(0, 0, 0, .16)",
+      "line": 107
+    },
+    {
+      "file": "src/layouts/GlobalAssistant.vue",
+      "rule": "literal-color",
+      "snippet": "box-shadow: 0 8px 28px rgba(0, 0, 0, .18)",
+      "line": 115
+    },
+    {
+      "file": "src/modules/dashboard/pages/DashboardPage.vue",
+      "rule": "literal-color",
+      "snippet": "background: linear-gradient(90deg, var(--mt-theme-6), #14e5c5)",
+      "line": 676
+    },
+    {
+      "file": "src/modules/dashboard/pages/DashboardPage.vue",
+      "rule": "literal-color",
+      "snippet": "--sk-shine: rgba(255, 255, 255, 0.72)",
+      "line": 984
+    },
+    {
+      "file": "src/modules/dashboard/pages/DashboardPage.vue",
+      "rule": "literal-color",
+      "snippet": "--sk-shine: rgba(255, 255, 255, 0.12)",
+      "line": 988
+    },
+    {
+      "file": "src/modules/user-management/components/ImportDrawer.vue",
+      "rule": "literal-color",
+      "snippet": "background: #F8FBFF",
+      "line": 285
+    },
+    {
+      "file": "src/styles/global.css",
+      "rule": "literal-color",
+      "snippet": "color: rgba(255, 255, 255, 0.4)",
+      "line": 248
+    },
+    {
+      "file": "src/styles/global.css",
+      "rule": "literal-color",
+      "snippet": "color: #FFFFFF",
+      "line": 410
+    },
+    {
+      "file": "src/styles/global.css",
+      "rule": "literal-color",
+      "snippet": "color: #fff",
+      "line": 466
+    }
+  ],
+  "findings": []
+}
