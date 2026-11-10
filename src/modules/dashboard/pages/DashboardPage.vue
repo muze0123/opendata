@@ -3,15 +3,15 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
 import { useI18n } from 'vue-i18n';
-import { IconClockCircle, IconDown, IconExclamationCircle, IconFullscreen, IconFullscreenExit, IconInfoCircle, IconNotification, IconRight } from '@arco-design/web-vue/es/icon';
-import { overviewApps, overviewNotices, reports, type AlertRecord, type OverviewApp, type OverviewMetric } from '../data/overview';
+import { IconApps, IconDown, IconFullscreen, IconFullscreenExit, IconInfoCircle } from '@arco-design/web-vue/es/icon';
+import { overviewApps, reports, type AlertRecord, type OverviewApp, type OverviewMetric } from '../data/overview';
 import AttackTrendChart from '../components/AttackTrendChart.vue';
 import csmsIcon from '../../../assets/apps/csms.svg';
 import vsocIcon from '../../../assets/apps/vsoc.svg';
 import taraIcon from '../../../assets/apps/tara.svg';
 import operationsIcon from '../../../assets/apps/operations.svg';
 
-const appIconUrls: Record<OverviewApp['icon'], string> = {
+const appIconUrls: Partial<Record<OverviewApp['icon'], string>> = {
   csms: csmsIcon,
   vsoc: vsocIcon,
   tara: taraIcon,
@@ -32,6 +32,7 @@ const fullScreen = ref(false);
 const overlayFullScreen = ref(false);
 const selectedAlert = ref<AlertRecord | null>(null);
 const groupsOpen = ref({ mine: true, more: true });
+const appPanelCollapsed = ref(false);
 const appStatuses = ref<Record<string, 'active' | 'inactive'>>(Object.fromEntries(overviewApps.map((app) => [app.id, app.initialStatus])));
 /**
  * 初始加载态：数据层目前是模块内静态模拟，没有真实请求，这里用一个短暂延时占位，
@@ -109,7 +110,8 @@ function activateApp(id: string) {
   Message.success(t('overview.activationSuccess'));
 }
 function launchApp(id: string) {
-  const url = router.resolve({ name: 'app-demo', params: { appId: id } }).href;
+  const app = overviewApps.find((item) => item.id === id);
+  const url = app?.url ?? router.resolve({ name: 'app-demo', params: { appId: id } }).href;
   const opened = window.open(url, '_blank');
   if (opened) opened.opener = null;
   else Message.error(t('overview.popupBlocked'));
@@ -119,7 +121,7 @@ function launchApp(id: string) {
 <template>
   <main class="overview-page">
     <p class="visually-hidden" role="status">{{ loading ? t('overview.loading') : t('overview.loaded') }}</p>
-    <div class="overview-layout">
+    <div class="overview-layout" :class="{ 'apps-collapsed': appPanelCollapsed }">
       <section
         ref="reportElement"
         class="overview-report"
@@ -139,12 +141,27 @@ function launchApp(id: string) {
           <span class="visually-hidden" aria-live="polite"
             >{{ t('overview.currentReport', { report: reportName }) }}</span
           >
-          <a-button class="fullscreen-button" @click="toggleFullScreen"
-            ><template #icon
-              ><IconFullscreenExit v-if="fullScreen" /><IconFullscreen
-                v-else /></template
-            >{{ t(fullScreen ? 'overview.exitFullscreen' : 'overview.fullscreen') }}</a-button
-          >
+          <div class="toolbar-actions">
+            <a-button class="fullscreen-button" @click="toggleFullScreen"
+              ><template #icon
+                ><IconFullscreenExit v-if="fullScreen" /><IconFullscreen
+                  v-else /></template
+              >{{ t(fullScreen ? 'overview.exitFullscreen' : 'overview.fullscreen') }}</a-button
+            >
+            <button
+              v-if="appPanelCollapsed"
+              class="apps-toggle-btn"
+              type="button"
+              :aria-label="t('overview.expandApps')"
+              @click="appPanelCollapsed = false"
+            >
+              <svg class="apps-toggle-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                <g transform="translate(16,0) scale(-1,1)">
+                  <path fill="#666666" d="M2.9356 2.60229L1.9928 3.5451L4.11412 5.66642L1.9928 7.78775L2.9356 8.73055L5.99974 5.66642L2.9356 2.60229ZM13.9998 13.3331V11.9997H1.99974V13.3331H13.9998ZM13.9998 8.66641V7.33308H7.99976V8.66641H13.9998ZM13.9998 3.99975V2.66642H7.99976V3.99975H13.9998Z" />
+                </g>
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="metrics-grid">
           <article
@@ -351,127 +368,97 @@ function launchApp(id: string) {
       </section>
       <aside class="overview-sidebar" :aria-label="t('overview.sidebar')" :aria-busy="loading">
         <section
-          class="overview-panel notices-panel"
-          aria-labelledby="notices-heading"
-        >
-          <div class="sidebar-heading">
-            <h2 id="notices-heading">{{ t('overview.noticesTitle') }}</h2>
-            <router-link :to="{ name: 'messages' }"
-              >{{ t('overview.more') }} <IconRight aria-hidden="true"
-            /></router-link>
-          </div>
-          <div v-if="loading" class="notice-list" aria-hidden="true">
-            <article v-for="n in 3" :key="`sk-notice-${n}`" class="notice-item">
-              <div class="notice-title">
-                <span class="sk sk-icon" />
-                <h3><span class="sk" style="width: 42%" /></h3>
-              </div>
-              <p><span class="sk" style="width: 92%" /></p>
-              <div class="notice-meta">
-                <span><span class="sk" style="width: 28px" /></span>
-                <time><span class="sk" style="width: 84px" /></time>
-              </div>
-            </article>
-          </div>
-          <div v-else class="notice-list">
-            <article
-              v-for="notice in overviewNotices"
-              :key="notice.id"
-              class="notice-item"
-            >
-              <div class="notice-title">
-                <span class="notice-icon" :class="notice.type"
-                  ><IconNotification
-                    v-if="notice.type === 'system'" /><IconClockCircle
-                    v-else-if="
-                      notice.type === 'overdue'
-                    " /><IconExclamationCircle v-else
-                /></span>
-                <h3>{{ t(`overview.notices.${notice.type}.title`) }}</h3>
-              </div>
-              <p :title="t(`overview.notices.${notice.type}.description`)">{{ t(`overview.notices.${notice.type}.description`) }}</p>
-              <div class="notice-meta">
-                <span>{{ notice.source }}</span
-                ><time>{{ notice.time }}</time>
-              </div>
-            </article>
-          </div>
-        </section>
-        <section
           class="overview-panel apps-panel"
+          :class="{ 'is-collapsed': appPanelCollapsed }"
           aria-labelledby="apps-heading"
         >
-          <div class="sidebar-heading"><h2 id="apps-heading">{{ t('overview.appsTitle') }}</h2></div>
-          <template v-if="loading">
-            <div v-for="count in [2, 4]" :key="`sk-group-${count}`" class="app-group" aria-hidden="true">
-              <div class="group-toggle"><span class="sk-slot" style="width: 72px"><span class="sk" /></span></div>
-              <div class="app-list">
-                <article v-for="n in count" :key="`sk-app-${n}`" class="app-item">
-                  <span class="sk sk-icon-lg" />
+          <div class="apps-panel-content">
+            <div class="sidebar-heading">
+              <h2 id="apps-heading">{{ t('overview.appsTitle') }}</h2>
+              <button
+                class="apps-collapse-btn"
+                type="button"
+                :aria-expanded="!appPanelCollapsed"
+                :aria-label="t('overview.collapseApps')"
+                @click="appPanelCollapsed = !appPanelCollapsed"
+              >
+                <svg class="apps-toggle-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                  <path fill="#666666" d="M2.9356 2.60229L1.9928 3.5451L4.11412 5.66642L1.9928 7.78775L2.9356 8.73055L5.99974 5.66642L2.9356 2.60229ZM13.9998 13.3331V11.9997H1.99974V13.3331H13.9998ZM13.9998 8.66641V7.33308H7.99976V8.66641H13.9998ZM13.9998 3.99975V2.66642H7.99976V3.99975H13.9998Z" />
+                </svg>
+              </button>
+            </div>
+            <template v-if="loading">
+              <div v-for="count in [2, 4]" :key="`sk-group-${count}`" class="app-group" aria-hidden="true">
+                <div class="group-toggle"><span class="sk-slot" style="width: 72px"><span class="sk" /></span></div>
+                <div class="app-list">
+                  <article v-for="n in count" :key="`sk-app-${n}`" class="app-item">
+                    <span class="sk sk-icon-lg" />
+                    <div class="app-copy">
+                      <div class="app-name"><span class="sk" style="width: 62%" /></div>
+                      <span class="app-description"><span class="sk" style="width: 84%" /></span>
+                    </div>
+                    <span class="sk sk-button" />
+                  </article>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+            <div
+              v-for="group in (['mine', 'more'] as const).filter((group) => overviewApps.some((app) => app.group === group))"
+              :key="group"
+              class="app-group"
+            >
+              <button
+                class="group-toggle"
+                type="button"
+                :aria-expanded="groupsOpen[group]"
+                @click="groupsOpen[group] = !groupsOpen[group]"
+              >
+                <IconDown
+                  class="group-chevron"
+                  :class="{ collapsed: !groupsOpen[group] }"
+                  aria-hidden="true"
+                />{{ t(group === 'mine' ? 'overview.mine' : 'overview.moreApps') }}
+              </button>
+              <div v-if="groupsOpen[group]" class="app-list">
+                <article
+                  v-for="app in overviewApps.filter(
+                    (item) => item.group === group
+                  )"
+                  :key="app.id"
+                  class="app-item"
+                >
+                  <span class="app-icon" aria-hidden="true">
+                    <IconApps v-if="app.icon === 'hmg'" :size="36" />
+                    <img v-else :src="appIconUrls[app.icon]" alt="" width="36" height="36" />
+                  </span>
                   <div class="app-copy">
-                    <div class="app-name"><span class="sk" style="width: 62%" /></div>
-                    <span class="app-description"><span class="sk" style="width: 84%" /></span>
+                    <div class="app-name" :title="appName(app)">
+                      {{ appName(app) }}
+                      <span v-if="app.new" class="new-label">NEW</span>
+                    </div>
+                    <span class="app-description">{{ t(`overview.apps.${app.icon}.description`) }}</span>
                   </div>
-                  <span class="sk sk-button" />
+                  <a-button
+                    v-if="appStatuses[app.id] === 'active'"
+                    type="outline"
+                    size="small"
+                    :aria-label="t('overview.startApp', { app: appName(app) })"
+                    @click="launchApp(app.id)"
+                    >{{ t('overview.start') }}</a-button
+                  ><a-button
+                    v-else
+                    type="primary"
+                    size="small"
+                    :aria-label="t('overview.activateApp', { app: appName(app) })"
+                    @click="activateApp(app.id)"
+                    >{{ t('overview.activate') }}</a-button
+                  >
                 </article>
               </div>
             </div>
-          </template>
-          <template v-else>
-          <div
-            v-for="group in (['mine', 'more'] as const)"
-            :key="group"
-            class="app-group"
-          >
-            <button
-              class="group-toggle"
-              type="button"
-              :aria-expanded="groupsOpen[group]"
-              @click="groupsOpen[group] = !groupsOpen[group]"
-            >
-              <IconDown
-                class="group-chevron"
-                :class="{ collapsed: !groupsOpen[group] }"
-                aria-hidden="true"
-              />{{ t(group === 'mine' ? 'overview.mine' : 'overview.moreApps') }}
-            </button>
-            <div v-if="groupsOpen[group]" class="app-list">
-              <article
-                v-for="app in overviewApps.filter(
-                  (item) => item.group === group
-                )"
-                :key="app.id"
-                class="app-item"
-              >
-                <span class="app-icon" aria-hidden="true">
-                  <img :src="appIconUrls[app.icon]" alt="" width="36" height="36" />
-                </span>
-                <div class="app-copy">
-                  <div class="app-name" :title="appName(app)">
-                    {{ appName(app) }}
-                    <span v-if="app.new" class="new-label">NEW</span>
-                  </div>
-                  <span class="app-description">{{ t(`overview.apps.${app.icon}.description`) }}</span>
-                </div>
-                <a-button
-                  v-if="appStatuses[app.id] === 'active'"
-                  type="outline"
-                  size="small"
-                  :aria-label="t('overview.startApp', { app: appName(app) })"
-                  @click="launchApp(app.id)"
-                  >{{ t('overview.start') }}</a-button
-                ><a-button
-                  v-else
-                  type="primary"
-                  size="small"
-                  :aria-label="t('overview.activateApp', { app: appName(app) })"
-                  @click="activateApp(app.id)"
-                  >{{ t('overview.activate') }}</a-button
-                >
-              </article>
-            </div>
+            </template>
           </div>
-          </template>
         </section>
       </aside>
     </div>
@@ -501,26 +488,42 @@ function launchApp(id: string) {
 
 <style scoped>
 .overview-page {
-  min-height: calc(100dvh - 56px);
-  padding: 16px var(--app-page-gutter);
+  min-height: calc(100dvh - 88px);
+  padding: 0;
   background: var(--mt-fill-1);
 }
 .overview-layout {
   max-width: 1920px;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: minmax(0, 3.3fr) minmax(320px, 1fr);
+  display: flex;
+  align-items: flex-start;
   gap: 16px;
-  align-items: start;
 }
-.overview-report,
-.overview-sidebar {
+.overview-report {
+  flex: 1 1 0;
   min-width: 0;
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 .overview-sidebar {
+  --app-sidebar-w: 380px;
+  flex: 0 0 var(--app-sidebar-w);
+  width: var(--app-sidebar-w);
+  min-width: 0;
+  display: grid;
   grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    flex-basis 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.overview-layout.apps-collapsed .overview-sidebar {
+  flex-basis: 0;
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.overview-layout.apps-collapsed {
+  gap: 0;
 }
 .overview-panel {
   min-width: 0;
@@ -558,7 +561,7 @@ function launchApp(id: string) {
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 .metric-panel {
   position: relative;
@@ -678,7 +681,7 @@ function launchApp(id: string) {
 .report-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 .ecu-panel,
 .alerts-panel {
@@ -775,9 +778,55 @@ function launchApp(id: string) {
 .sidebar-heading a:hover {
   color: var(--app-accent);
 }
-.notices-panel,
 .apps-panel {
   padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.apps-panel.is-collapsed {
+  padding: 0;
+}
+.apps-toggle-btn,
+.apps-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--border-radius-small);
+  background: transparent;
+  color: var(--color-text-2);
+  font-size: 16px;
+  cursor: pointer;
+}
+.apps-toggle-btn:hover,
+.apps-collapse-btn:hover {
+  background: var(--color-fill-2);
+  color: var(--app-accent);
+}
+.apps-toggle-btn:focus-visible,
+.apps-collapse-btn:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+.apps-panel-content {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease;
+}
+.apps-panel.is-collapsed .apps-panel-content {
+  transform: translateX(var(--app-sidebar-w));
+  opacity: 0;
+  pointer-events: none;
+}
+.apps-toggle-icon {
+  display: block;
+}
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .notice-list,
 .app-list {
@@ -787,62 +836,7 @@ function launchApp(id: string) {
 }
 .notice-item,
 .app-item {
-  border: 1px solid var(--app-divider);
   border-radius: 4px;
-}
-.notice-item {
-  padding: 12px 14px;
-}
-.notice-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.notice-title h3 {
-  margin: 0;
-  font-size: 14px;
-  line-height: 22px;
-  font-weight: 600;
-}
-.notice-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 2px;
-  color: var(--app-accent);
-  background: var(--mt-theme-1);
-}
-.notice-icon.overdue {
-  color: var(--app-color-warning);
-  background: var(--mt-warn-bg);
-}
-.notice-icon.alert {
-  color: var(--app-color-danger);
-  background: var(--mt-error-bg);
-}
-.notice-item p {
-  margin: 7px 0 5px;
-  color: var(--color-text-2);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.notice-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--color-text-3);
-  font-size: 12px;
-  line-height: 20px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.notice-meta span {
-  padding: 1px 4px;
-  background: var(--color-fill-2);
 }
 .app-group + .app-group {
   margin-top: 16px;
@@ -859,7 +853,7 @@ function launchApp(id: string) {
   color: var(--color-text-1);
   font: inherit;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 22px;
   text-align: left;
   cursor: pointer;
@@ -906,11 +900,11 @@ function launchApp(id: string) {
 }
 .new-label {
   display: inline-block;
-  padding: 0 4px;
+  padding: 0 3px;
   background: var(--app-color-warning);
   color: white;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 10px;
+  line-height: 14px;
   vertical-align: middle;
 }
 .app-description {
@@ -1063,10 +1057,14 @@ body[arco-theme='dark'] .overview-page {
     animation: none;
     opacity: 0;
   }
+  .overview-sidebar,
+  .apps-panel-content {
+    transition: none;
+  }
 }
 @media (max-width: 1500px) {
-  .overview-layout {
-    grid-template-columns: minmax(0, 1fr) 320px;
+  .overview-sidebar {
+    --app-sidebar-w: 320px;
   }
   .metric-panel,
   .ecu-panel,
@@ -1076,24 +1074,41 @@ body[arco-theme='dark'] .overview-page {
 }
 @media (max-width: 1180px) {
   .overview-layout {
-    grid-template-columns: minmax(0, 1fr);
+    flex-direction: column;
   }
   .overview-sidebar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex: 1 1 auto;
+    width: auto;
+    --app-sidebar-w: 100%;
+  }
+  .overview-layout.apps-collapsed .overview-sidebar {
+    flex: 1 1 auto;
+    width: 0;
+    overflow: hidden;
+  }
+  .apps-collapse-btn {
+    display: none;
+  }
+  .apps-panel.is-collapsed {
+    padding: 16px;
+  }
+  .apps-panel.is-collapsed .apps-panel-content {
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 @media (max-width: 760px) {
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .overview-sidebar,
   .report-detail-grid {
     grid-template-columns: 1fr;
   }
 }
 @media (max-width: 480px) {
   .overview-page {
-    padding: 16px var(--app-page-gutter);
+    padding: 0;
   }
   .metrics-grid {
     gap: 8px;
@@ -1111,9 +1126,6 @@ body[arco-theme='dark'] .overview-page {
   }
   .metric-change {
     font-size: 12px;
-  }
-  .notice-meta {
-    white-space: normal;
   }
 }
 </style>

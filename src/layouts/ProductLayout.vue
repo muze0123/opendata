@@ -38,6 +38,7 @@ const accountOpen = ref(false);
 const themeOpen = ref(false);
 const languageOpen = ref(false);
 const taskTooltipVisible = ref(false);
+const noticeTooltipVisible = ref(false);
 function selectTheme(value: unknown) {
   if (value === 'light' || value === 'dark') setThemeMode(value);
   themeOpen.value = false;
@@ -157,19 +158,28 @@ function updateViewport() {}
             <IconList :size="19" />
             <span
               v-if="taskCenterStore.processingCount > 0"
-              class="shell-task-badge"
+              class="shell-count-badge"
               aria-hidden="true"
             >{{ taskCenterStore.processingCount > 99 ? '99+' : taskCenterStore.processingCount }}</span>
           </button>
         </a-tooltip>
 
-        <button class="shell-icon-button shell-notice-trigger" type="button" :aria-label="`${t('mc.title')} (${messages.unread})`" @click="router.push('/messages')">
-          <a-badge :count="messages.unread" :max-count="99"><IconNotification :size="19" /></a-badge>
-        </button>
+        <a-tooltip v-model:popup-visible="noticeTooltipVisible" :content="t('mc.title')" position="bottom" content-class="app-tooltip-light" arrow-class="app-tooltip-light-arrow">
+          <button
+            class="shell-icon-button shell-notice-trigger"
+            type="button"
+            :aria-label="`${t('mc.title')} (${messages.unread})`"
+            @focus="noticeTooltipVisible = true"
+            @blur="noticeTooltipVisible = false"
+            @click="noticeTooltipVisible = false; router.push('/messages')"
+          >
+            <IconNotification :size="19" />
+            <span v-if="messages.unread > 0" class="shell-count-badge" aria-hidden="true">{{ messages.unread > 99 ? '99+' : messages.unread }}</span>
+          </button>
+        </a-tooltip>
         <a-popover v-model:popup-visible="accountOpen" trigger="hover" position="br">
           <button class="product-account account-trigger" type="button" :aria-label="t('account.center')" :aria-expanded="accountOpen" @click="accountOpen = !accountOpen" @focus="accountOpen = true" @keydown.esc="accountOpen = false">
             <a-avatar :size="28"><img :src="avatarSrc" alt="" @error="avatarLoadFailed = true" /></a-avatar>
-            <span>{{ userProfileStore.profile.displayName }}</span>
           </button>
           <template #content>
             <div class="account-popup" @keydown.esc="accountOpen = false">
@@ -233,7 +243,9 @@ function updateViewport() {}
    页面根节点即白色业务面板，直接铺满内容区。 */
 .product-shell { min-height: 100vh; padding-top: 56px; background: var(--app-page); color: var(--color-text-1); }
 .product-header { position: fixed; inset: 0 0 auto; z-index: 20; display: flex; align-items: center; gap: 16px; height: 56px; padding: 0 16px; background: var(--app-surface); box-shadow: var(--app-shadow-4); }
-.product-brand { display: inline-flex; align-items: center; flex: none; gap: 10px; color: var(--color-text-1); text-decoration: none; white-space: nowrap; }
+/* 2026-11-09 用户裁决：顶部导航菜单起点距页面左侧 220px。
+   16px header 内边距 + 188px 品牌区 + 16px header gap = 220px；<=900px 窄屏品牌改为 flex:none，不受此值影响。 */
+.product-brand { display: inline-flex; align-items: center; flex: 0 0 188px; gap: 10px; color: var(--color-text-1); text-decoration: none; white-space: nowrap; }
 .product-brand strong { overflow: hidden; font-size: 16px; font-weight: 600; text-overflow: ellipsis; }
 .product-mark { display: grid; flex: 0 0 32px; width: 32px; height: 32px; place-items: center; border-radius: 4px; border: 1px solid var(--app-divider); background: var(--app-surface); }
 .product-mark img { display: block; width: 32px; height: 32px; object-fit: contain; }
@@ -252,7 +264,7 @@ function updateViewport() {}
 .product-account :deep(.arco-avatar) { flex: none; background: var(--color-fill-2); }
 .product-account :deep(.arco-avatar img) { display: block; width: 100%; height: 100%; object-fit: cover; }
 /* 固定侧栏不参与文档流，内容区自行保留 16px 画布间距。 */
-.product-body { display: flex; align-items: flex-start; min-height: calc(100vh - 56px); padding: 0 16px 0 0; }
+.product-body { display: flex; align-items: flex-start; min-height: calc(100vh - 56px); padding: 16px; }
 .product-sidebar { position: fixed; top: 56px; bottom: 0; left: 0; z-index: 10; display: flex; flex-direction: column; width: 205px; height: calc(100dvh - 56px); padding: 16px 8px 0; background: var(--app-surface); transition: width 200ms ease; }
 .product-sidebar.is-collapsed { width: 64px; }
 .product-sidebar > nav { flex: 1; min-height: 0; overflow-y: auto; }
@@ -268,14 +280,15 @@ function updateViewport() {}
 .product-sidebar.is-collapsed .product-sidebar-toggle { justify-content: center; padding: 0; }
 .product-sidebar.is-collapsed .product-toggle-label { display: none; }
 /* 内容区：仅在存在左侧栏时预留 205/64px 侧栏宽度 + 16px 画布间距；无左侧栏（首页等）则占满。 */
-.product-main { flex: 1; min-width: 0; margin-left: 0; padding-top: 16px; margin-bottom: 16px; }
-.product-shell.has-sidebar .product-main { margin-left: 221px; }
-.product-shell.has-sidebar .product-sidebar.is-collapsed + .product-main { margin-left: 80px; }
+.product-main { flex: 1; min-width: 0; margin-left: 0; padding-top: 0; margin-bottom: 0; }
+.product-shell.has-sidebar .product-main { margin-left: 205px; }
+.product-shell.has-sidebar .product-sidebar.is-collapsed + .product-main { margin-left: 64px; }
 @media (max-width: 900px) {
   /* 窄屏改为文档流中的横向菜单，正文不再预留左侧宽度。 */
   .product-body { flex-direction: column; align-items: stretch; gap: 0; padding: 16px; }
+  .product-brand { flex: none; }
   .product-topnav { height: 44px; }
-  .product-main, .product-shell.has-sidebar .product-main { margin-left: 0; margin-bottom: 0; padding-top: 16px; }
+  .product-main, .product-shell.has-sidebar .product-main, .product-shell.has-sidebar .product-sidebar.is-collapsed + .product-main { margin-left: 0; margin-bottom: 0; padding-top: 0; }
   .product-sidebar, .product-sidebar.is-collapsed { position: static; z-index: auto; flex: none; width: 100%; height: auto; margin-bottom: 16px; padding: 8px 16px; border-bottom: 1px solid var(--app-divider); }
   .product-sidebar > nav { display: flex; gap: 8px; overflow-x: auto; }
   .product-sidebar > nav > .product-menu-link { flex: 0 0 auto; width: auto; white-space: nowrap; }

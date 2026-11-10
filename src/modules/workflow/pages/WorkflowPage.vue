@@ -8,6 +8,8 @@ import {
   onBeforeRouteUpdate,
 } from "vue-router";
 import { Message } from "@arco-design/web-vue";
+import AppPagination from "../../../design/components/AppPagination.vue";
+import AppDetailList from "../../../design/components/AppDetailList.vue";
 import ConfirmDialog from "../../../shared/components/ConfirmDialog.vue";
 import {
   IconPlus,
@@ -22,28 +24,21 @@ import {
   IconRight,
 } from "@arco-design/web-vue/es/icon";
 import FlowCanvas from "../components/FlowCanvas.vue";
+import AttachmentField from "../components/AttachmentField.vue";
 import NodeConfig from "../components/NodeConfig.vue";
 import ConditionEditor from "../components/ConditionEditor.vue";
 import ColumnSettingsPopover from "../../../shared/components/ColumnSettingsPopover.vue";
 import { api, WorkflowError } from "../api";
 import {
   newNode,
-  PROJECT_ROLE_CODES,
   type Bootstrap,
   type Definition,
   type WorkflowNode,
   type NodeKind,
   type Branch,
   type Template,
-  type Instance,
 } from "../data/model";
-import {
-  nodeLabel,
-  typeLabel,
-  valueLabel,
-  roleLabel,
-  fieldLabel,
-} from "../labels";
+import { nodeLabel, typeLabel } from "../labels";
 import { useUserStore } from "../../user-management/stores/users";
 import { roles } from "../../user-management/data/users";
 const { t } = useI18n();
@@ -54,12 +49,7 @@ const base = "/settings/workflow";
 const data = ref<Bootstrap>({
   definitions: [],
   templates: [],
-  instances: [],
-  activities: [],
-  risks: [],
-  messages: [],
   dictionaries: {},
-  adapters: {},
 });
 const loading = ref(false),
   busy = ref(false),
@@ -336,8 +326,8 @@ function onConfirmVisible(value: boolean) {
 
 function remove(d: Definition) {
   askConfirm({
-    title: t("workflow.delete"),
-    description: t("workflow.deleteConfirm", { name: d.name }),
+    title: t("workflow.flowDeleteTitle", { name: d.name }),
+    description: t("workflow.flowDeleteWarning"),
     okText: t("workflow.delete"),
     cancelText: t("workflow.cancel"),
     beforeOk: async () => {
@@ -426,9 +416,29 @@ const templateOpen = ref(false),
     content: "",
     attachments: [],
   });
+const templateFilters = reactive({ name: '', channel: '' });
+const appliedTemplateFilters = reactive({ name: '', channel: '' });
+const templatePage = ref(1), templatePageSize = ref(10);
+const filteredTemplates = computed(() => data.value.templates.filter(item =>
+  item.name.toLocaleLowerCase().includes(appliedTemplateFilters.name.trim().toLocaleLowerCase()) &&
+  (!appliedTemplateFilters.channel || item.channel === appliedTemplateFilters.channel)));
+const templateColumns = computed(() => [
+  { title: t('workflow.templateName'), dataIndex: 'name', width: 260 },
+  { title: t('workflow.channel'), dataIndex: 'channel', slotName: 'channel', width: 180 },
+  { title: t('workflow.operations'), slotName: 'templateOperations', width: 160, fixed: 'right' as const },
+]);
+const templateRows = computed(() => filteredTemplates.value.slice((templatePage.value - 1) * templatePageSize.value, templatePage.value * templatePageSize.value));
+function searchTemplates(reset = false) {
+  if (reset) Object.assign(templateFilters, { name: '', channel: '' });
+  Object.assign(appliedTemplateFilters, templateFilters);
+  templatePage.value = 1;
+}
+watch(() => filteredTemplates.value.length, count => {
+  templatePage.value = Math.min(templatePage.value, Math.max(1, Math.ceil(count / templatePageSize.value)));
+});
 function editTemplate(item?: Template, readonly = false) {
   templateForm.value = item
-    ? clone(item)
+    ? { ...clone(item), attachments: clone(item.attachments ?? []) }
     : {
         id: "",
         name: "",
@@ -485,105 +495,13 @@ function deleteTemplate(item: Template) {
     },
   });
 }
-const runOpen = ref(false),
-  runDefinition = ref<Definition>(),
-  runForm = reactive({
-    responsible: "u-admin",
-    owner: "u-admin",
-    activityId: "",
-    extensionDays: 1,
-    riskDescription: "",
-    projectStatus: "active",
-    projectStage: "development",
-    activityStatus: "active",
-    approvalResult: "approved",
-    returnCount: 0,
-  });
-const instanceOpen = ref(false),
-  activeInstance = ref<Instance>(),
-  comment = ref("");
-const activityOpen = ref(false),
-  activityForm = reactive({
-    name: "",
-    planEnd: new Date().toISOString().slice(0, 10),
-  });
 const actorOptions = computed(() => [
   { id: "u-admin", name: t("workflow.currentActor") },
   ...users.users
     .filter((u) => u.enabled)
     .map((u) => ({ id: u.id, name: u.name })),
 ]);
-function run(d: Definition) {
-  runDefinition.value = d;
-  runOpen.value = true;
-}
-async function startRun() {
-  busy.value = true;
-  try {
-    const context = {
-      ...runForm,
-      roles: Object.fromEntries(
-        roles.map((r) => [
-          r.id,
-          users.users
-            .filter((u) => u.enabled && u.roleIds.includes(r.id))
-            .map((u) => u.id),
-        ]),
-      ),
-      projectRoles: Object.fromEntries(
-        PROJECT_ROLE_CODES.map((id) => [id, [runForm.owner]]),
-      ),
-    };
-    const i = await api<Instance>("instances", "POST", {
-      definitionId: runDefinition.value!.id,
-      context,
-    });
-    await load();
-    runOpen.value = false;
-    activeInstance.value = i;
-    instanceOpen.value = true;
-  } catch (e) {
-    report(e);
-  } finally {
-    busy.value = false;
-  }
-}
-async function taskAction(action: string, taskId?: string) {
-  if (!activeInstance.value) return;
-  busy.value = true;
-  try {
-    activeInstance.value = await api<Instance>(
-      `instances/${activeInstance.value.id}/${action === "retry" ? "retry" : taskId ? "action" : action}`,
-      "POST",
-      {
-        taskId,
-        action,
-        comment: comment.value,
-        revision: activeInstance.value.revision,
-      },
-    );
-    comment.value = "";
-    await load();
-  } catch (e) {
-    report(e);
-  } finally {
-    busy.value = false;
-  }
-}
-async function createActivity() {
-  busy.value = true;
-  try {
-    await api("activities", "POST", activityForm);
-    await load();
-    activityOpen.value = false;
-  } catch (e) {
-    report(e);
-  } finally {
-    busy.value = false;
-  }
-}
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
-const tab = ref("definitions");
 </script>
 <template>
   <div class="workflow-page">
@@ -594,34 +512,7 @@ const tab = ref("definitions");
       }}</a-button></a-alert
     ><a-spin :loading="loading" style="width: 100%"
       ><template v-if="mode === 'list'"
-        ><div
-          class="workflow-tabs panel"
-          role="tablist"
-          :aria-label="t('workflow.title')"
-        >
-          <button
-            v-for="item in ['definitions', 'instances', 'business']"
-            :key="item"
-            role="tab"
-            :aria-selected="tab === item"
-            :class="{ active: tab === item }"
-            @click="tab = item"
-            @keydown.right.prevent="
-              tab = ['definitions', 'instances', 'business'][
-                (['definitions', 'instances', 'business'].indexOf(tab) + 1) % 3
-              ]
-            "
-            @keydown.left.prevent="
-              tab = ['definitions', 'instances', 'business'][
-                (['definitions', 'instances', 'business'].indexOf(tab) + 2) % 3
-              ]
-            "
-          >
-            {{ t(`workflow.${item}`) }}
-          </button>
-        </div>
-        <template v-if="tab === 'definitions'"
-          ><form class="filters panel" @submit.prevent="search()">
+        ><form class="filters panel" @submit.prevent="search()">
             <div
               v-for="item in filterState.filter((v) => v.visible)"
               :key="item.key"
@@ -673,7 +564,7 @@ const tab = ref("definitions");
               ><template #icon><IconSearch /></template
               >{{ t("workflow.search") }}</a-button
             >
-            <a-button @click="search(true)"
+            <a-button class="app-btn-neutral" @click="search(true)"
               ><template #icon><IconRefresh /></template
               >{{ t("workflow.reset") }}</a-button
             >
@@ -692,12 +583,12 @@ const tab = ref("definitions");
               :show-label="t('workflow.show')"
               :restore-label="t('workflow.restore')"
               @change="filterState = $event"
-              ><a-tooltip :content="t('workflow.filterSettings')"
+                ><a-tooltip :content="t('workflow.filterSettings')"
                 ><a-button
-                  class="settings-trigger"
+                  class="app-btn-neutral settings-trigger"
                   :aria-label="t('workflow.filterSettings')"
                   ><IconFilter /></a-button></a-tooltip
-            ></ColumnSettingsPopover>
+              ></ColumnSettingsPopover>
           </form>
           <section class="panel">
             <div class="toolbar">
@@ -711,8 +602,7 @@ const tab = ref("definitions");
                   createOpen = true;
                 "
                 ><IconPlus />{{ t("workflow.create") }}</a-button
-              ><a-space
-                ><a-button @click="templateOpen = true">{{
+              ><a-button class="app-btn-neutral" @click="templateOpen = true">{{
                   t("workflow.manageTemplates")
                 }}</a-button
                 ><ColumnSettingsPopover
@@ -732,13 +622,12 @@ const tab = ref("definitions");
                   :restore-label="t('workflow.restore')"
                   @change="columnState = $event"
                   ><a-button
-                    class="settings-trigger"
+                    class="app-btn-neutral settings-trigger"
                     :title="t('workflow.columns')"
                     :aria-label="t('workflow.columns')"
                     ><IconSettings /></a-button></ColumnSettingsPopover
 
-                ></a-space
-              >
+                >
             </div>
             <a-table
               :data="visible"
@@ -797,10 +686,12 @@ const tab = ref("definitions");
                       >{{ t("workflow.edit") }}</a-button
                     ><a-dropdown
                       v-if="!record.builtin"
-                      trigger="hover"
+                      :trigger="['hover', 'click']"
                       position="br"
                       popup-container="body"
                       content-class="row-more-dropdown"
+                      arrow-class="row-more-arrow"
+                      show-arrow
                       ><a-button
                         type="text"
                         size="mini"
@@ -809,7 +700,7 @@ const tab = ref("definitions");
                         ><IconMore /></a-button
                       ><template #content
                         ><a-doption
-                          class="danger-option"
+                          class="row-more-danger"
                           @click="remove(record)"
                           >{{ t("workflow.delete") }}</a-doption
                         ></template
@@ -878,123 +769,17 @@ const tab = ref("definitions");
               }}</span>
             </nav>
           </section></template
-        >
-        <section v-else-if="tab === 'instances'" class="panel">
-          <div class="toolbar">
-            <a-alert>{{ t("workflow.runtimeHelp") }}</a-alert
-            ><a-button @click="load">{{ t("workflow.refresh") }}</a-button>
-          </div>
-          <a-table
-            :data="data.instances"
-            :pagination="{ pageSize: 10 }"
-            :bordered="false"
-            :scroll="{ x: 700 }"
-            ><a-table-column :title="t('workflow.name')"
-              ><template #cell="{ record }">{{
-                record.definition.name
-              }}</template></a-table-column
-            ><a-table-column
-              :title="t('workflow.instanceId')"
-              data-index="id"
-              ellipsis
-            /><a-table-column :title="t('workflow.enabled')"
-              ><template #cell="{ record }">{{
-                valueLabel(t, record.status)
-              }}</template></a-table-column
-            ><a-table-column :title="t('workflow.operations')"
-              ><template #cell="{ record }"
-                ><a-button
-                  type="text"
-                  @click="
-                    activeInstance = clone(record);
-                    instanceOpen = true;
-                  "
-                  >{{ t("workflow.handle") }}</a-button
-                ></template
-              ></a-table-column
-            ></a-table
-          >
-        </section>
-        <section v-else class="panel">
-          <div class="toolbar">
-            <a-alert>{{ t("workflow.businessHelp") }}</a-alert
-            ><a-button @click="activityOpen = true">{{
-              t("workflow.createActivity")
-            }}</a-button>
-          </div>
-          <a-table :data="data.activities" :bordered="false"
-            ><a-table-column
-              :title="t('workflow.activity')"
-              data-index="name"
-            /><a-table-column
-              :title="t('workflow.planEnd')"
-              data-index="planEnd"
-            /><a-table-column :title="t('workflow.operations')"
-              ><template #cell="{ record }"
-                ><a-space
-                  ><a-button
-                    :disabled="
-                      record.extensionPending ||
-                      !data.definitions.find((d) => d.builtin === 'extension')
-                        ?.enabled
-                    "
-                    @click="
-                      runForm.activityId = record.id;
-                      run(
-                        data.definitions.find(
-                          (d) => d.builtin === 'extension',
-                        )!,
-                      );
-                    "
-                    >{{ t("workflow.extension") }}</a-button
-                  ><a-button
-                    :disabled="
-                      !data.definitions.find((d) => d.builtin === 'risk')
-                        ?.enabled
-                    "
-                    @click="
-                      runForm.activityId = record.id;
-                      run(data.definitions.find((d) => d.builtin === 'risk')!);
-                    "
-                    >{{ t("workflow.risk") }}</a-button
-                  ></a-space
-                ></template
-              ></a-table-column
-            ></a-table
-          >
-          <h2>{{ t("workflow.risks") }}</h2>
-          <a-table :data="data.risks" :bordered="false"
-            ><a-table-column
-              :title="t('workflow.description')"
-              data-index="description"
-            /><a-table-column :title="t('workflow.enabled')"
-              ><template #cell="{ record }">{{
-                valueLabel(t, record.status)
-              }}</template></a-table-column
-            ></a-table
-          >
-          <h2>{{ t("workflow.messages") }}</h2>
-          <a-list :data="data.messages"
-            ><template #item="{ item }"
-              ><a-list-item
-                >{{ t(`workflow.effects.${item.type}`) }} ·
-                {{ item.at }}</a-list-item
-              ></template
-            ></a-list
-          >
-        </section> </template
       ><template v-else
         ><header class="panel editor-header">
-          <a-breadcrumb
+          <div class="editor-location"><a-button type="text" class="workflow-back" :aria-label="t('workflow.backToList')" @click="router.push({ path: base, query: route.query })"><IconLeft /></a-button><a-breadcrumb
             ><a-breadcrumb-item
               ><router-link :to="{ path: base, query: route.query }">{{
                 t("workflow.title")
               }}</router-link></a-breadcrumb-item
             ><a-breadcrumb-item>{{
-              draft?.name || t("workflow.missing")
-            }}</a-breadcrumb-item></a-breadcrumb
-          ><a-space
-            ><template v-if="!readOnly && !missing"
+              readOnly ? t("workflow.detailPage") : t("workflow.editPage")
+            }}</a-breadcrumb-item></a-breadcrumb></div
+          ><a-space v-if="!readOnly && !missing"            ><template v-if="!readOnly && !missing"
               ><a-button
                 :disabled="historyIndex <= 0"
                 :aria-label="t('workflow.undo')"
@@ -1005,15 +790,10 @@ const tab = ref("definitions");
                 :aria-label="t('workflow.redo')"
                 @click="undo(1)"
                 ><IconRedo /></a-button
+              ><a-button class="workflow-close" @click="router.push({ path: base, query: route.query })">{{ t('workflow.close') }}</a-button
               ><a-button type="primary" :loading="busy" @click="save">{{
                 t("workflow.save")
               }}</a-button></template
-            ><a-button v-if="draft?.enabled" @click="run(draft)">{{
-              t("workflow.run")
-            }}</a-button
-            ><a-button
-              @click="router.push({ path: base, query: route.query })"
-              >{{ t("workflow.close") }}</a-button
             ></a-space
           >
         </header>
@@ -1021,64 +801,13 @@ const tab = ref("definitions");
           v-if="missing"
           status="404"
           :title="t('workflow.missing')" /><template v-else-if="draft"
-          ><section class="panel basic">
-            <h2>{{ t("workflow.basicInfo") }}</h2>
-            <a-alert v-if="draft.builtin">{{
-              t("workflow.lockedHelp")
-            }}</a-alert
-            ><a-descriptions :column="1"
-              ><a-descriptions-item
-                ><template #label
-                  ><span class="app-detail-label">{{
-                    t("workflow.name")
-                  }}</span></template
-                >{{ draft.name }}</a-descriptions-item
-              ><a-descriptions-item
-                ><template #label
-                  ><span class="app-detail-label">{{
-                    t("workflow.type")
-                  }}</span></template
-                >{{ typeLabel(t, draft.type) }}</a-descriptions-item
-              ><a-descriptions-item
-                ><template #label
-                  ><span class="app-detail-label">{{
-                    t("workflow.enabled")
-                  }}</span></template
-                ><a-tag :color="draft.enabled ? 'green' : 'gray'">{{
-                  draft.enabled ? t("workflow.on") : t("workflow.off")
-                }}</a-tag></a-descriptions-item
-              ><a-descriptions-item
-                ><template #label
-                  ><span class="app-detail-label">{{
-                    t("workflow.definitionId")
-                  }}</span></template
-                ><span class="definition-id">{{
-                  draft.id
-                }}</span></a-descriptions-item
-              ><a-descriptions-item
-                ><template #label
-                  ><span class="app-detail-label">{{
-                    t("workflow.version")
-                  }}</span></template
-                >v{{ draft.revision }}</a-descriptions-item
-              ><a-descriptions-item :span="1"
-                ><template #label
-                  ><span class="app-detail-label">{{
-                    t("workflow.description")
-                  }}</span></template
-                >{{
-                  draft.builtin
-                    ? t("workflow.lockedHelp")
-                    : draft.description || "—"
-                }}</a-descriptions-item
-              ></a-descriptions
-            >
-          </section>
-          <section class="panel canvas-panel">
-            <h2>{{ t("workflow.canvas") }}</h2>
+          ><section class="panel canvas-panel">
+            <h2 v-if="readOnly">{{ t('workflow.canvas') }}</h2>
             <div class="canvas" :aria-label="t('workflow.canvas')">
               <FlowCanvas
                 :nodes="draft.nodes"
+                :template-labels="Object.fromEntries(data.templates.map(item => [item.id, item.name]))"
+                :assignee-labels="Object.fromEntries([...roles, ...actorOptions].map(person => [person.id, person.name]))"
                 :readonly="readOnly"
                 :locked="!!draft.builtin"
                 root
@@ -1091,7 +820,7 @@ const tab = ref("definitions");
     ></a-spin>
     <a-modal
       v-model:visible="createOpen"
-      :width="560"
+      :width="'min(560px, calc(100vw - 32px))'"
       :title="t('workflow.create')"
       :mask-closable="false"
       :ok-text="t('workflow.next')"
@@ -1104,7 +833,7 @@ const tab = ref("definitions");
       "
       :ok-loading="busy"
       ><a-form :model="createForm" layout="vertical"
-        ><a-form-item
+        ><a-form-item required
           :validate-status="
             submitted && !createForm.name.trim() ? 'error' : undefined
           "
@@ -1122,7 +851,7 @@ const tab = ref("definitions");
             :max-length="20"
             show-word-limit
             :placeholder="t('workflow.input')" /></a-form-item
-        ><a-form-item
+        ><a-form-item required
           :validate-status="submitted && !createForm.type ? 'error' : undefined"
           ><template #label
             ><span class="app-field-label">{{
@@ -1151,7 +880,7 @@ const tab = ref("definitions");
     <a-drawer
       class="workflow-node-drawer"
       :visible="!!selected || !!selectedBranch"
-      :width="selectedBranch ? 800 : 500"
+      :width="selectedBranch ? 'min(800px, 100vw)' : 'min(500px, 100vw)'"
       :title="
         selected
           ? nodeLabel(t, selected.kind)
@@ -1210,45 +939,32 @@ const tab = ref("definitions");
     >
     <a-drawer
       v-model:visible="templateOpen"
-      :width="800"
+      :width="'min(800px, 100vw)'"
       :title="t('workflow.manageTemplates')"
       :footer="false"
-      ><section class="panel">
+      ><form class="filters panel" @submit.prevent="searchTemplates()">
+        <label class="filter-field"><span class="app-field-label">{{ t('workflow.templateName') }}</span><a-input v-model="templateFilters.name" :max-length="20" :placeholder="t('workflow.input')" :aria-label="t('workflow.templateName')" /></label>
+        <label class="filter-field"><span class="app-field-label">{{ t('workflow.channel') }}</span><a-select v-model="templateFilters.channel" :aria-label="t('workflow.channel')"><a-option value="">{{ t('workflow.every') }}</a-option><a-option value="email">{{ nodeLabel(t, 'email') }}</a-option><a-option value="sms">{{ nodeLabel(t, 'sms') }}</a-option></a-select></label>
+        <a-space><a-button html-type="submit" type="primary"><IconSearch />{{ t('workflow.search') }}</a-button><a-button @click="searchTemplates(true)"><IconRefresh />{{ t('workflow.reset') }}</a-button></a-space>
+      </form><section class="panel">
         <a-button type="primary" @click="editTemplate()">{{
           t("workflow.createTemplate")
         }}</a-button
-        ><a-table :data="data.templates" :bordered="false"
-          ><a-table-column
-            :title="t('workflow.templateName')"
-            data-index="name"
-          /><a-table-column :title="t('workflow.channel')"
-            ><template #cell="{ record }">{{
-              nodeLabel(t, record.channel)
-            }}</template></a-table-column
-          ><a-table-column :title="t('workflow.operations')"
-            ><template #cell="{ record }"
-              ><a-space
-                ><a-button type="text" @click="editTemplate(record, true)">{{
-                  t("workflow.detail")
-                }}</a-button
-                ><a-button type="text" @click="editTemplate(record)">{{
-                  t("workflow.edit")
-                }}</a-button
-                ><a-button
-                  type="text"
-                  status="danger"
-                  @click="deleteTemplate(record)"
-                  >{{ t("workflow.delete") }}</a-button
-                ></a-space
-              ></template
-            ></a-table-column
-          ></a-table
-        >
+        ><a-table :data="templateRows" :columns="templateColumns" :bordered="false" :pagination="false" :scroll="{ x: 600 }">
+          <template #empty>{{ t('workflow.empty') }}</template>
+          <template #channel="{ record }">{{ nodeLabel(t, record.channel) }}</template>
+          <template #templateOperations="{ record }"><a-space>
+            <a-button type="text" @click="editTemplate(record, true)">{{ t('workflow.detail') }}</a-button>
+            <a-button type="text" @click="editTemplate(record)">{{ t('workflow.edit') }}</a-button>
+            <a-dropdown trigger="click" @select="deleteTemplate(record)"><a-button type="text" :aria-label="t('workflow.more')"><IconMore /></a-button><template #content><a-doption value="delete">{{ t('workflow.delete') }}</a-doption></template></a-dropdown>
+          </a-space></template>
+        </a-table>
+        <AppPagination v-model:current="templatePage" v-model:page-size="templatePageSize" :total="filteredTemplates.length" :page-sizes="[10, 50, 100, 500]" />
       </section></a-drawer
     >
     <a-modal
       v-model:visible="templateEdit"
-      :width="560"
+      :width="'min(560px, calc(100vw - 32px))'"
       :title="t('workflow.messageTemplate')"
       :mask-closable="false"
       :footer="!templateReadonly"
@@ -1258,8 +974,24 @@ const tab = ref("definitions");
           return !templateEdit;
         }
       "
-      ><a-form :model="templateForm" layout="vertical"
+      ><AppDetailList v-if="templateReadonly" :fields="[
+        { key: 'channel', label: t('workflow.channel'), value: nodeLabel(t, templateForm.channel) },
+        { key: 'name', label: t('workflow.templateName'), value: templateForm.name },
+        { key: 'title', label: t('workflow.messageTitle'), value: templateForm.title },
+        { key: 'content', label: t('workflow.content'), value: templateForm.content },
+        { key: 'attachments', label: t('workflow.attachments'), value: templateForm.attachments.map(file => file.name).join('、') || '—' },
+      ]" /><a-form v-else :model="templateForm" layout="vertical"
         ><a-form-item
+          ><template #label
+            ><span class="app-field-label">{{
+              t("workflow.channel")
+            }}</span></template
+          ><a-select v-model="templateForm.channel" :disabled="templateReadonly"
+            ><a-option value="email">{{ nodeLabel(t, "email") }}</a-option
+            ><a-option value="sms">{{
+              nodeLabel(t, "sms")
+            }}</a-option></a-select
+          ></a-form-item        ><a-form-item
           v-for="field in ['name', 'title', 'content'] as const"
           :key="field"
           ><template #label
@@ -1273,257 +1005,19 @@ const tab = ref("definitions");
           ><a-textarea
             v-if="field === 'content'"
             v-model="templateForm[field]"
+            :aria-label="t('workflow.content')"
             :max-length="500"
             :disabled="templateReadonly" /><a-input
             v-else
             v-model="templateForm[field]"
+            :aria-label="field === 'name' ? t('workflow.templateName') : field === 'title' ? t('workflow.messageTitle') : t('workflow.content')"
             :max-length="20"
             :disabled="templateReadonly" /></a-form-item
-        ><a-form-item
-          ><template #label
-            ><span class="app-field-label">{{
-              t("workflow.channel")
-            }}</span></template
-          ><a-select v-model="templateForm.channel" :disabled="templateReadonly"
-            ><a-option value="email">{{ nodeLabel(t, "email") }}</a-option
-            ><a-option value="sms">{{
-              nodeLabel(t, "sms")
-            }}</a-option></a-select
-          ></a-form-item
+
+          ><a-form-item :label="t('workflow.attachments')"><AttachmentField v-model="templateForm.attachments" /></a-form-item
         ></a-form
       ></a-modal
     >
-    <a-modal
-      v-model:visible="runOpen"
-      :title="t('workflow.run')"
-      :width="560"
-      :mask-closable="false"
-      :on-before-ok="
-        async () => {
-          await startRun();
-          return !runOpen;
-        }
-      "
-      :ok-loading="busy"
-      ><a-alert>{{ t("workflow.runHelp") }}</a-alert
-      ><a-form :model="runForm" layout="vertical"
-        ><a-form-item
-          ><template #label
-            ><span class="app-field-label">{{
-              t("workflow.responsible")
-            }}</span></template
-          ><a-select v-model="runForm.responsible"
-            ><a-option v-for="u in actorOptions" :key="u.id" :value="u.id">{{
-              u.name
-            }}</a-option></a-select
-          ></a-form-item
-        ><a-form-item
-          ><template #label
-            ><span class="app-field-label">{{
-              t("workflow.projectOwner")
-            }}</span></template
-          ><a-select v-model="runForm.owner"
-            ><a-option v-for="u in actorOptions" :key="u.id" :value="u.id">{{
-              u.name
-            }}</a-option></a-select
-          ></a-form-item
-        ><a-form-item
-          v-for="field in [
-            'projectStatus',
-            'projectStage',
-            'activityStatus',
-          ] as const"
-          :key="field"
-          ><template #label
-            ><span class="app-field-label">{{
-              fieldLabel(t, field)
-            }}</span></template
-          ><a-select v-model="runForm[field]"
-            ><a-option
-              v-for="value in data.dictionaries[field] ?? []"
-              :key="value"
-              :value="value"
-              >{{ valueLabel(t, value) }}</a-option
-            ></a-select
-          ></a-form-item
-        ><template v-if="runDefinition?.builtin"
-          ><a-form-item
-            ><template #label
-              ><span class="app-field-label">{{
-                t("workflow.activity")
-              }}</span></template
-            ><a-select v-model="runForm.activityId"
-              ><a-option
-                v-for="a in data.activities"
-                :key="a.id"
-                :value="a.id"
-                >{{ a.name }}</a-option
-              ></a-select
-            ></a-form-item
-          ><a-form-item v-if="runDefinition.builtin === 'extension'"
-            ><template #label
-              ><span class="app-field-label">{{
-                t("workflow.days")
-              }}</span></template
-            ><a-input-number
-              v-model="runForm.extensionDays"
-              :min="1"
-              :max="365"
-              :precision="0" /></a-form-item
-          ><a-form-item v-else
-            ><template #label
-              ><span class="app-field-label">{{
-                t("workflow.riskDescription")
-              }}</span></template
-            ><a-textarea
-              v-model="runForm.riskDescription"
-              :max-length="500" /></a-form-item></template></a-form
-    ></a-modal>
-    <a-drawer
-      v-model:visible="instanceOpen"
-      :width="800"
-      :title="t('workflow.instance')"
-      :footer="false"
-      ><template v-if="activeInstance"
-        ><section class="panel">
-          <h2>{{ activeInstance.definition.name }}</h2>
-          <p>
-            {{ activeInstance.id }} · v{{
-              activeInstance.definition.revision
-            }}
-            · {{ valueLabel(t, activeInstance.status) }}
-          </p>
-          <a-button
-            :disabled="busy"
-            @click="
-              load().then(
-                () =>
-                  (activeInstance = data.instances.find(
-                    (i) => i.id === activeInstance?.id,
-                  )),
-              )
-            "
-            >{{ t("workflow.refresh") }}</a-button
-          ><a-space v-if="activeInstance.status === 'running'"
-            ><a-button :loading="busy" @click="taskAction('withdraw')">{{
-              t("workflow.withdraw")
-            }}</a-button
-            ><a-button
-              status="danger"
-              :loading="busy"
-              @click="taskAction('cancel')"
-              >{{ t("workflow.void") }}</a-button
-            ></a-space
-          >
-        </section>
-        <section class="panel">
-          <h2>{{ t("workflow.pending") }}</h2>
-          <a-textarea
-            v-model="comment"
-            :max-length="500"
-            :aria-label="t('workflow.comment')"
-            :placeholder="t('workflow.comment')"
-          />
-          <div
-            v-for="task in activeInstance.tasks.filter((v) =>
-              ['pending', 'external'].includes(v.status),
-            )"
-            :key="task.id"
-            class="task"
-          >
-            <strong>{{
-              task.node.name || nodeLabel(t, task.node.kind)
-            }}</strong>
-            <p>
-              {{ t("workflow.assignees") }}：{{
-                task.assignees
-                  .map(
-                    (id) => actorOptions.find((u) => u.id === id)?.name ?? id,
-                  )
-                  .join("、")
-              }}
-            </p>
-            <a-alert v-if="task.status === 'external'" type="warning"
-              >{{
-                data.adapters[task.node.kind]
-                  ? t("workflow.externalReady")
-                  : t("workflow.externalPending")
-              }}<a-button
-                v-if="data.adapters[task.node.kind]"
-                :disabled="busy"
-                @click="taskAction('retry', task.id)"
-                >{{ t("workflow.retry") }}</a-button
-              ></a-alert
-            ><a-alert v-else-if="!task.assignees.includes('u-admin')">{{
-              t("workflow.otherAssignee")
-            }}</a-alert
-            ><a-space v-else-if="task.node.kind === 'review'"
-              ><a-button
-                type="primary"
-                :disabled="busy || task.votes?.includes('u-admin')"
-                @click="taskAction('approve', task.id)"
-                >{{ t("workflow.approve") }}</a-button
-              ><a-button
-                status="danger"
-                :disabled="busy || task.votes?.includes('u-admin')"
-                @click="taskAction('reject', task.id)"
-                >{{ t("workflow.reject") }}</a-button
-              ></a-space
-            ><a-space v-else
-              ><a-button
-                type="primary"
-                :disabled="busy"
-                @click="taskAction('submit', task.id)"
-                >{{ t("workflow.submit") }}</a-button
-              ><a-button
-                :disabled="busy"
-                @click="taskAction('return', task.id)"
-                >{{ t("workflow.return") }}</a-button
-              ></a-space
-            >
-          </div>
-        </section>
-        <section class="panel">
-          <h2>{{ t("workflow.history") }}</h2>
-          <a-timeline
-            ><a-timeline-item
-              v-for="event in activeInstance.history"
-              :key="event.id"
-              :label="event.at"
-              >{{ t(`workflow.events.${event.code}`) }} ·
-              {{ event.nodeId || "—" }}
-              <p v-if="event.comment">{{ event.comment }}</p></a-timeline-item
-            ></a-timeline
-          >
-        </section></template
-      ></a-drawer
-    >
-    <a-modal
-      v-model:visible="activityOpen"
-      :title="t('workflow.createActivity')"
-      :on-before-ok="
-        async () => {
-          await createActivity();
-          return !activityOpen;
-        }
-      "
-      ><a-form :model="activityForm" layout="vertical"
-        ><a-form-item
-          ><template #label
-            ><span class="app-field-label">{{
-              t("workflow.activity")
-            }}</span></template
-          ><a-input
-            v-model="activityForm.name"
-            :max-length="100" /></a-form-item
-        ><a-form-item
-          ><template #label
-            ><span class="app-field-label">{{
-              t("workflow.planEnd")
-            }}</span></template
-          ><a-date-picker
-            v-model="activityForm.planEnd" /></a-form-item></a-form
-    ></a-modal>
 
     <ConfirmDialog
       :visible="!!pendingConfirm"
@@ -1538,27 +1032,6 @@ const tab = ref("definitions");
   </div>
 </template>
 <style scoped>
-.workflow-tabs {
-  display: flex;
-  gap: 24px;
-  padding-bottom: 0;
-}
-.workflow-tabs button {
-  font: inherit;
-  color: var(--app-text-secondary);
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  padding: 0 0 12px;
-  cursor: pointer;
-}
-.workflow-tabs button.active {
-  border-bottom-color: var(--app-color-primary);
-  color: var(--app-color-primary);
-}
-.workflow-tabs button:focus-visible {
-  outline: 2px solid var(--app-color-primary);
-}
 .workflow-page > :deep(.arco-spin) {
   display: flex;
   flex-direction: column;
@@ -1583,30 +1056,41 @@ const tab = ref("definitions");
   min-width: 0;
   margin-bottom: 0;
 }
+/* 筛选条（2026-11-09 用户裁决）：字段名在上、控件在下，12px / 4px / 左对齐 / 200px，
+   条件与查询/重置/筛选设置统一 16px 栅栏换行分布，按钮紧跟最后一个条件右侧且左对齐 */
 .filters {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  align-items: flex-end;
+  gap: var(--mt-ds-space-4);
   flex-wrap: wrap;
 }
 .filters .app-field-label {
   white-space: nowrap;
-  flex-shrink: 0;
+  font-size: var(--mt-ds-font-caption);
+  font-weight: var(--mt-ds-weight-body);
+  line-height: var(--mt-ds-line-caption);
+  text-align: left;
+  padding: 0;
 }
 .filters .filter-field {
-  flex-shrink: 0;
-  display: inline-grid;
-  grid-template-columns: max-content minmax(0, 200px);
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, var(--mt-ds-filter-width));
+  align-items: start;
+  justify-items: start;
+  gap: var(--mt-ds-space-1);
+  min-width: 0;
 }
-.filters .filter-field > .arco-input-wrapper {
-  width: 200px;
+.filters .filter-field :deep(.app-filter-control) {
+  width: var(--mt-ds-filter-width);
+  max-width: 100%;
 }
-.filters .filter-field > .arco-select {
-  width: 200px;
-}
-.toolbar,
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.toolbar :deep(.settings-trigger) { margin-inline-start: auto; }
+.workflow-back { width: 32px; height: 32px; min-width: 32px; padding: 0; color: var(--app-text-secondary); border: 0; flex-shrink: 0; }
+.workflow-close { background: transparent; border: 1px solid var(--app-divider); color: var(--app-text-primary); }
+.workflow-close:hover { background: transparent; border-color: var(--app-color-primary); color: var(--app-color-primary); }
+.workflow-back:hover { color: var(--app-color-primary); background: var(--app-primary-light-bg); }
+.editor-location { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .editor-header {
   display: flex;
   align-items: center;
@@ -1647,36 +1131,12 @@ h2 {
   line-height: 24px;
   margin: 0 0 12px;
 }
-.task {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--app-divider);
-}
-.task p {
-  color: var(--app-text-secondary);
-}
-:deep(.arco-pagination) {
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
 :deep(.arco-drawer-body) {
   background: var(--app-fill-1);
 }
 @media (max-width: 900px) {
   .toolbar {
     flex-wrap: wrap;
-  }
-  .filters .app-field-label {
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .filters .filter-field {
-    max-width: 100%;
-  }
-  .filters label > .arco-input-wrapper,
-  .filters .filter-field > .arco-select {
-    flex: 1;
   }
   .editor-header {
     position: static;
@@ -1719,6 +1179,10 @@ h2 {
 }
 .workflow-page :deep(.arco-table-th) {
   background: var(--app-table-header);
+  font-weight: var(--mt-ds-weight-body);
+}
+.workflow-page :deep(.arco-table-td) {
+  font-weight: var(--mt-ds-weight-body);
 }
 .workflow-page :deep(.arco-table-tr:last-child .arco-table-td) {
   border-bottom: 1px solid var(--app-divider);
@@ -1734,16 +1198,15 @@ h2 {
 .editor-header {
   margin-bottom: 0;
 }
-.filters .app-field-label {
-  text-align: right;
-}
-@media (max-width: 600px) {
+/* 窄屏：每个筛选单元独占一行、控件占满可用宽度（DESIGN.md · Filter geometry）。 */
+@media (max-width: 760px) {
+  .filters { align-items: stretch; }
   .filters .filter-field {
     width: 100%;
-    grid-template-columns: max-content minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
-  .filters .app-filter-control {
-    width: 100% !important;
+  .filters .filter-field :deep(.app-filter-control) {
+    width: 100%;
   }
 }
 :global(.workflow-node-drawer .arco-drawer-body) {

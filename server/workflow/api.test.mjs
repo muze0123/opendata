@@ -12,6 +12,7 @@ test("HTTP persistence, optimistic locking, transactional business hooks", async
     service = spawn(process.execPath, ["server/workflow/server.mjs"], {
       env: {
         ...process.env,
+        WORKFLOW_LEGACY_ENGINE: process.env.WARMFLOW_URL ? "0" : "1",
         WORKFLOW_DB: join(dir, "test.sqlite"),
         WORKFLOW_PORT: String(port),
       },

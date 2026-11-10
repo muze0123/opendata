@@ -40,13 +40,7 @@ const selectedOrchestration = computed(() => TASK_ORCHESTRATIONS.find((item) => 
 const rules = computed(() => ({
   taskName: [
     { required: true, message: t('taskCreate.nameRequired') },
-    {
-      validator: (_value: string, callback: (error?: string) => void) => {
-        const name = form.taskName.trim();
-        if (name && taskRecords.some((record) => record.name === name)) callback(t('taskCreate.nameDuplicated'));
-        else callback();
-      },
-    },
+
   ],
   orchestrationId: [{ required: true, message: t('taskCreate.orchestrationRequired') }],
 }));
@@ -152,7 +146,7 @@ function cancelCreate() {
 <template>
   <a-drawer
     v-model:visible="visible"
-    width="min(800px, 100vw)"
+    width="min(500px, 100vw)"
     unmount-on-close
     :mask-closable="!saving && !dirty"
     :header="true"

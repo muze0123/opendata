@@ -318,7 +318,7 @@ function handleSelectionChange(keys: (string | number)[]) {
 function clearSelection() {
   selectedKeys.value = [];
 }
-/** 返回选中项中属于主管理员（不可操作）的数量。 */
+/** 返回选中项中属于超级管理员（不可操作）的数量。 */
 function selectedOwnerCount(): number {
   return selectedUsers.value.filter((u) => u.owner).length;
 }
@@ -355,6 +355,8 @@ function openDetail(user: UserRecord) {
   detailVisible.value = true;
 }
 function openEdit(user: UserRecord) {
+  /** 超级管理员（owner）不提供编辑入口，这里再兜一层，防止从详情等旁路进入。 */
+  if (user.owner) return;
   formMode.value = 'edit';
   formUser.value = user;
   formVisible.value = true;
@@ -506,7 +508,9 @@ function deptNameById(id: string) {
 
         <form class="um-toolbar" @submit.prevent="applyFilters">
           <div class="um-filter-unit um-filter-keyword">
+            <label class="app-field-label" for="um-keyword">{{ t('userManagement.toolbar.keyword') }}</label>
             <a-input
+              id="um-keyword"
               v-model="draft.keyword"
               :placeholder="t('userManagement.toolbar.searchPlaceholder')"
               allow-clear
@@ -662,16 +666,16 @@ function deptNameById(id: string) {
           <template #actions="{ record }">
             <div class="um-row-actions">
               <button type="button" class="um-link" @click="openDetail(record as UserRecord)">{{ t('userManagement.actions.view') }}</button>
-              <button type="button" class="um-link" @click="openEdit(record as UserRecord)">{{ t('userManagement.actions.edit') }}</button>
+              <button v-if="!(record as UserRecord).owner" type="button" class="um-link" @click="openEdit(record as UserRecord)">{{ t('userManagement.actions.edit') }}</button>
               <a-dropdown trigger="click" position="br" popup-container="body" content-class="row-more-dropdown" arrow-class="row-more-arrow" show-arrow>
-                <button type="button" class="um-row-more" :aria-label="t('userManagement.actions.delete')">
+                <button type="button" class="um-row-more" :aria-label="t('userManagement.actions.more')">
                   <IconMore :size="16" />
                 </button>
                 <template #content>
                   <a-doption @click="openResetPassword(record as UserRecord)">{{ t('userManagement.actions.resetPassword') }}</a-doption>
                   <a-doption
+                    v-if="!(record as UserRecord).owner"
                     class="row-more-danger"
-                    :disabled="(record as UserRecord).owner"
                     @click="confirmDeleteSingle(record as UserRecord)"
                   >{{ t('userManagement.actions.delete') }}</a-doption>
                 </template>
@@ -814,14 +818,14 @@ function deptNameById(id: string) {
 .um-rail-all.is-active { color: var(--app-accent); background: var(--color-primary-light-1); font-weight: 600; }
 .um-tree { max-height: calc(100vh - 240px); overflow: auto; }
 
-/* 筛选条：label + control 单元，8px 内间距、16px 行/列间距（DESIGN.md · Filter strip packing）。
+/* 筛选条（2026-11-09 用户裁决）：字段名在上、控件在下，12px / 4px / 左对齐 / 200px，
+   条件与查询/重置/筛选设置统一 16px 栅栏换行分布，按钮紧跟最后一个条件右侧且左对齐。
    控件宽度必须用 :deep()：Arco 的 .arco-select-view 由组件内部渲染，不带本文件的 scope id，
    直接写 .um-filter-control 会静默失效（选择器带 [data-v] 后不匹配）。 */
-.um-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 14px; }
-.um-filter-unit { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
-.um-filter-unit :deep(.app-filter-control) { flex: 0 0 200px; width: 200px; }
-/* 搜索框单独放宽到 250px，其余筛选控件保持 200px（2026-11-06 用户裁决） */
-.um-filter-keyword :deep(.app-filter-control) { flex: 0 0 250px; width: 250px; }
+.um-toolbar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: var(--mt-ds-space-4); margin-bottom: 14px; }
+.um-filter-unit { display: grid; grid-template-columns: minmax(0, var(--mt-ds-filter-width)); align-items: start; justify-items: start; gap: var(--mt-ds-space-1); min-width: 0; }
+.um-filter-unit .app-field-label { font-size: var(--mt-ds-font-caption); font-weight: var(--mt-ds-weight-body); line-height: var(--mt-ds-line-caption); text-align: left; padding: 0; white-space: nowrap; }
+.um-filter-unit :deep(.app-filter-control) { width: var(--mt-ds-filter-width); max-width: 100%; }
 .um-toolbar > :deep(.arco-btn) { flex: 0 0 auto; }
 /* 图标工具按钮（筛选设置／列设置）：32×32、白底描边（DESIGN.md · Icon-only toolbar controls） */
 .um-icon-trigger { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
@@ -842,8 +846,8 @@ function deptNameById(id: string) {
 .um-table :deep(table) { table-layout: fixed; }
 .um-table :deep(.arco-table-th), .um-table :deep(.arco-table-td) { padding: 8px 10px; white-space: nowrap; }
 .um-table :deep(.arco-table-td) { overflow: hidden; text-overflow: ellipsis; }
-.um-table :deep(.arco-table-th) { font-weight: 400; background: var(--color-fill-2); }
-.um-table :deep(.arco-table-td), .um-table :deep(.arco-table-th-item-title) { font-weight: 400; }
+.um-table :deep(.arco-table-th) { font-weight: var(--mt-ds-weight-body); background: var(--app-table-header); }
+.um-table :deep(.arco-table-td), .um-table :deep(.arco-table-th-item-title) { font-weight: var(--mt-ds-weight-body); }
 .um-table :deep(.arco-table-tr) .arco-table-td:nth-child(1) .um-link { font-weight: 400; color: var(--color-text-1); }
 /* 姓名列：左侧圆形头像（取姓名首字），右侧为可点开的姓名链接 */
 .um-name-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
@@ -873,10 +877,11 @@ function deptNameById(id: string) {
   .um-split { grid-template-columns: 250px minmax(0, 1fr); }
   .um-tree { max-height: 200px; }
 }
+/* 窄屏：每个筛选单元独占一行、控件占满可用宽度（DESIGN.md · Filter geometry）。 */
 @media (max-width: 760px) {
   .um-split { grid-template-columns: 1fr; }
   .um-toolbar { align-items: stretch; }
-  .um-filter-unit { flex: 1 1 100%; }
-  .um-filter-unit :deep(.app-filter-control) { flex: 1 1 auto; width: 100%; }
+  .um-filter-unit { grid-template-columns: minmax(0, 1fr); width: 100%; }
+  .um-filter-unit :deep(.app-filter-control) { width: 100%; }
 }
 </style>

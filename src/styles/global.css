@@ -175,23 +175,30 @@ body .arco-form-item-status-error .arco-picker-focused:not(.arco-picker-disabled
 .arco-trigger-arrow.row-more-arrow { background: var(--app-surface); z-index: 1; }
 
 /* Filter controls use the white business surface in light mode; disabled states keep Arco's neutral fill.
-   覆盖范围含日期区间选择器（.arco-picker），否则其默认 Fill-2 灰底不符合白表面规则。 */
-.app-filter-control.arco-input-wrapper,
-.app-filter-control.arco-select-view,
-.app-filter-control .arco-select-view,
-.app-filter-control.arco-picker {
+   覆盖范围含日期区间选择器（.arco-picker），否则其默认 Fill-2 灰底不符合白表面规则。
+   白底规则必须显式排除禁用态：本段位于全局「禁用态 Fill-2 灰底」之后且同特异性，
+   若不排除会把已禁用的控件（如「国家」下拉在选择区域前）刷回白底，违反 DESIGN.md · Input/Select。 */
+.app-filter-control.arco-input-wrapper:not(.arco-input-disabled),
+.app-filter-control.arco-select-view:not(.arco-select-view-disabled),
+.app-filter-control .arco-select-view:not(.arco-select-view-disabled),
+.app-filter-control.arco-picker:not(.arco-picker-disabled) {
   background: var(--app-surface);
   border-color: var(--app-control-border);
 }
-.app-filter-control.arco-input-wrapper:hover,
-.app-filter-control.arco-select-view:hover,
-.app-filter-control .arco-select-view:hover,
-.app-filter-control.arco-picker:hover,
-.app-filter-control.arco-input-wrapper:focus-within,
-.app-filter-control.arco-select-view:focus-within,
-.app-filter-control .arco-select-view:focus-within,
-.app-filter-control.arco-picker:focus-within {
+.app-filter-control.arco-input-wrapper:not(.arco-input-disabled):hover,
+.app-filter-control.arco-select-view:not(.arco-select-view-disabled):hover,
+.app-filter-control .arco-select-view:not(.arco-select-view-disabled):hover,
+.app-filter-control.arco-picker:not(.arco-picker-disabled):hover,
+.app-filter-control.arco-input-wrapper:not(.arco-input-disabled):focus-within,
+.app-filter-control.arco-select-view:not(.arco-select-view-disabled):focus-within,
+.app-filter-control .arco-select-view:not(.arco-select-view-disabled):focus-within,
+.app-filter-control.arco-picker:not(.arco-picker-disabled):focus-within {
   background: var(--app-surface);
+}
+/* 2026-11-09 用户裁决：筛选 Select 显示「全部」占位时与正文同色（color-text-1），
+   不使用 Arco 默认三级灰占位；原任务中心抽屉的局部规则统一收敛至此。 */
+.app-filter-control .arco-select-view-input::placeholder {
+  color: var(--color-text-1);
 }
 
 /* Multi-line text inputs were still rendering Arco's gray fill inside drawers and dialogs:
@@ -324,6 +331,45 @@ body .department-dialog .arco-modal-footer {
   text-align: right;
 }
 
+/* ---------------------------------------------------------------- 任务详情表单弹窗 */
+/* 驳回 / 退回 / 结束 / 转交 / 撤回 / 提交属于「需要输入的流程确认」，是表单弹窗而非二次确认：
+   560px 内容弹窗、48px 带标题头、20px 内边距，footer 是带 1px 上描边的独立操作区
+   （DESIGN.md · Dialog / Department dialog action block）。高度随内容增长，不套确认弹窗的 250px 固定高度。
+   a-modal 的 class 同样落在 Teleport 容器上，必须在全局声明。 */
+.detail-form-dialog .arco-modal-header {
+  flex: none;
+  border-bottom: 1px solid var(--app-divider);
+}
+.detail-form-dialog .arco-modal-body {
+  padding: 24px 20px;
+}
+body .detail-form-dialog .arco-modal-footer {
+  flex: none;
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--app-divider);
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------- 账号信息表单弹窗 */
+/* 「更换头像 / 验证手机 / 修改手机 / 验证邮箱 / 修改邮箱 / 修改密码」共用一套居中表单弹窗外壳。
+   与部门表单弹窗、任务详情表单弹窗同构：48px 带标题头（下描边）→ 内容 24px/20px →
+   footer 上描边且右对齐（DESIGN.md · Dialog / Department dialog action block）。
+   a-modal 的 class 落在 Teleport 容器上，页面 scoped 样式够不到弹层内部，因此按容器类
+   .account-dialog 在全局收敛。 */
+.account-dialog .arco-modal-header {
+  flex: none;
+  border-bottom: 1px solid var(--app-divider);
+}
+.account-dialog .arco-modal-body {
+  padding: 24px 20px;
+}
+body .account-dialog .arco-modal-footer {
+  flex: none;
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--app-divider);
+  text-align: right;
+}
+
 /* Drawer 标题 16px/600/24（DESIGN.md · Typography：Card/Dialog/Drawer 标题同一角色）。
    Arco Drawer 标题默认字重与行高不在规范内，这里统一对齐。 */
 .arco-drawer-header .arco-drawer-title {
@@ -398,6 +444,12 @@ body .department-dialog .arco-modal-footer {
   background-color: var(--color-fill-2);
   cursor: not-allowed;
 }
+/* 2026-11-09 用户裁决（窄屏一致性）：≤760px 时分页页码组允许换行与收缩，
+   避免 375px 下「共 N 条 / 每页条数 / 页码 / 跳至」一行排不下造成横向溢出；
+   提升特异性以覆盖各列表页 scoped 下的 .pagination-pages。 */
+@media (max-width: 760px) {
+  nav.app-pagination .pagination-pages { flex-wrap: wrap; min-width: 0; flex: 1 1 auto; margin-right: 0; }
+}
 
 .default-layout { min-height: 100vh; background: var(--app-page); }
 .default-layout-header {
@@ -436,7 +488,10 @@ body .department-dialog .arco-modal-footer {
 .shell-notice-trigger { position: relative; }
 .shell-unread-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: rgb(var(--danger-6)); }
 .shell-task-trigger { position: relative; }
-.shell-task-badge {
+/* 2026-11-08 用户裁决：导航栏右侧「任务」与「消息」的数字角标统一为同一规格（16px）。
+   两者共用 .shell-count-badge，尺寸、字号、圆角与距按钮上/右 3px 的定位完全一致；
+   数字位数不同时按同一 min-width + padding 规则加宽，不使用 Arco 默认的 20px 数字角标。 */
+.shell-count-badge {
   position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 8px; background: rgb(var(--danger-6)); color: var(--app-on-accent);
   font-size: 10px; font-weight: 600; line-height: 16px; text-align: center;
@@ -495,14 +550,14 @@ body .department-dialog .arco-modal-footer {
   border-bottom: 1px solid var(--app-divider);
   color: var(--color-text-1);
   background: var(--app-table-header);
-  font-size: 14px; font-weight: 600; line-height: 22px;
+  font-size: var(--mt-ds-font-body); font-weight: var(--mt-ds-weight-body); line-height: var(--mt-ds-line-body);
   white-space: nowrap; text-align: left;
 }
 .tc-drawer .arco-table-td {
   height: 52px; padding: 8px 12px;
   border-bottom: 1px solid var(--app-divider);
   background: var(--app-surface);
-  font-size: 14px; line-height: 22px;
+  font-size: var(--mt-ds-font-body); font-weight: var(--mt-ds-weight-body); line-height: var(--mt-ds-line-body);
   white-space: nowrap; text-align: left;
 }
 .tc-drawer .arco-table-tr:hover .arco-table-td { background: var(--color-fill-1); }
@@ -565,6 +620,28 @@ body .department-dialog .arco-modal-footer {
 .um-import-drawer .arco-drawer-body { padding: 16px; overflow-y: auto; }
 .um-import-drawer .slide-right-drawer-leave-active { transition-timing-function: linear; }
 
+/* ---------------------------------------------------------------- 批量导入（基础数据库通用） */
+/* DESIGN.md · Batch import baseline：上传目标（虚线语义边框、居中文档图标、文件名/提示、高亮上传按钮）
+   + 注意事项浅主题色区块（--app-primary-light-bg：#DFF7F9 亮色 / #123B41 暗色）+ 模板下载命令，
+   三者同处一个白色内容块。 */
+.app-import-drawer .arco-drawer { background: var(--app-fill-1); }
+.app-import-drawer .arco-drawer-header,
+.app-import-drawer .arco-drawer-footer { background: var(--app-surface); }
+.app-import-drawer .arco-drawer-header { height: 56px; }
+.app-import-drawer .arco-drawer-title { font-size: 16px; font-weight: 600; line-height: 24px; }
+.app-import-drawer .arco-drawer-body { padding: 16px; overflow-y: auto; }
+.app-import-drawer .slide-right-drawer-leave-active { transition-timing-function: linear; }
+.app-import-block { padding: 16px; background: var(--app-surface); border-radius: 2px; min-width: 0; }
+.app-import-target { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 180px; margin-bottom: 16px; padding: 16px; border: 1px dashed var(--app-control-border); border-radius: 2px; background: var(--app-surface); color: var(--color-text-2); text-align: center; cursor: pointer; overflow-wrap: anywhere; }
+.app-import-target:hover, .app-import-target.is-dragging { border-color: var(--app-accent); }
+.app-import-target.is-dragging { background: var(--app-primary-light-bg); }
+.app-import-target:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+.app-import-target-name { margin: 0; max-width: 100%; overflow-wrap: anywhere; color: var(--color-text-1); line-height: 22px; }
+.app-import-notes { margin-bottom: 16px; padding: 12px 16px; border-radius: 2px; background: var(--app-primary-light-bg); }
+.app-import-notes-title { margin: 0 0 8px; color: var(--color-text-1); font-size: 14px; font-weight: 600; line-height: 22px; }
+.app-import-notes-lines { margin: 0; color: var(--color-text-2); font-size: 14px; line-height: 22px; white-space: pre-line; }
+.app-import-template { margin-bottom: 16px; }
+
 /* ---------------------------------------------------------------- 用户详情抽屉 */
 .um-detail-drawer .arco-drawer { background: var(--app-fill-1); }
 .um-detail-drawer .arco-drawer-header,
@@ -578,6 +655,39 @@ body .department-dialog .arco-modal-footer {
 .um-detail-drawer .arco-descriptions-item-label::after { content: var(--app-field-colon); }
 .um-detail-drawer .arco-descriptions-item-value { color: var(--color-text-1); }
 .um-detail-drawer .arco-descriptions-row > td { padding-bottom: 10px; }
+
+/* ---------------------------------------------------------------- 证书新增/编辑/详情抽屉 */
+/* 业务抽屉表面：整体 Fill-1 灰画布，56px 头部与固定底部操作栏走白色业务表面，
+   表单以一张 16px 内边距白卡承载（DESIGN.md · Drawer / Business-drawer surface）。
+   只读详情的标签带冒号、Text-3，值 Text-1；滑出动画用 linear 计时（DESIGN.md · Dismissal and motion）。 */
+.certificate-drawer .arco-drawer { background: var(--app-fill-1); }
+.certificate-drawer .arco-drawer-header,
+.certificate-drawer .arco-drawer-footer { background: var(--app-surface); }
+.certificate-drawer .arco-drawer-header { height: 56px; }
+.certificate-drawer .arco-drawer-title { font-size: 16px; font-weight: 600; line-height: 24px; }
+.certificate-drawer .arco-drawer-body { padding: 16px; overflow-y: auto; }
+.certificate-drawer .arco-descriptions-item-label { color: var(--color-text-3); }
+.certificate-drawer .arco-descriptions-item-label::after { content: var(--app-field-colon); }
+.certificate-drawer .arco-descriptions-item-value { color: var(--color-text-1); }
+.certificate-drawer .slide-right-drawer-leave-active { transition-timing-function: linear; }
+
+/* ---------------------------------------------------------------- 零部件新增/编辑抽屉 */
+/* 与证书抽屉同一套业务抽屉表面（DESIGN.md · Business-drawer surface / Drawer form-control detail）：
+   Fill-1 画布、56px 白色头部与固定底部操作栏、16px 内容内边距、表单白卡；
+   可编辑控件白底 + 1px 语义描边、聚焦走主题色，禁用态由 Fill-2 承载。 */
+.parts-form-drawer .arco-drawer { background: var(--app-fill-1); }
+.parts-form-drawer .arco-drawer-header,
+.parts-form-drawer .arco-drawer-footer { background: var(--app-surface); }
+.parts-form-drawer .arco-drawer-header { height: 56px; }
+.parts-form-drawer .arco-drawer-title { font-size: 16px; font-weight: 600; line-height: 24px; }
+.parts-form-drawer .arco-drawer-body { padding: 16px; overflow-y: auto; }
+.parts-form-drawer .arco-drawer .arco-input-wrapper,
+.parts-form-drawer .arco-drawer .arco-select-view { border: 1px solid var(--app-control-border); }
+.parts-form-drawer .arco-drawer .arco-input-wrapper:focus-within,
+.parts-form-drawer .arco-drawer .arco-select-view.arco-select-view-focus { border-color: var(--app-accent); }
+.parts-form-drawer .arco-drawer .arco-input-disabled,
+.parts-form-drawer .arco-drawer .arco-select-view-disabled { background: var(--color-fill-2); }
+.parts-form-drawer .slide-right-drawer-leave-active { transition-timing-function: linear; }
 
 /* ---------------------------------------------------------------- 详情字段列表 */
 /* 只读详情抽屉用「标签列 + 值列」行式排布——标签 Text-2、值 Text-1，标签与值之间
@@ -712,10 +822,8 @@ body .department-dialog .arco-modal-footer {
 }
 .login-form-shell { width: min(100%, 400px); }
 .login-mobile-brand { display: none; }
-.login-header { margin-bottom: 40px; text-align: center; }
-.login-header h1 { margin: 0; color: var(--color-text-1); font-size: 28px; font-weight: 600; line-height: 1.3; }
 .login-alert { margin-bottom: 20px; }
-.login-form-panel .arco-form-item { margin-bottom: 24px; }
+.login-form-panel .arco-form-item { margin-bottom: 16px; }
 .login-form-panel .arco-input-wrapper {
   min-height: 52px;
   border: 1px solid var(--color-border-2);
@@ -754,8 +862,6 @@ body .department-dialog .arco-modal-footer {
 
 @media (max-width: 480px) {
   .login-form-panel { padding: 32px 16px; }
-  .login-header { margin-bottom: 28px; }
-  .login-header h1 { font-size: 24px; }
   .login-form-panel .arco-input-wrapper { min-height: 48px; }
   .login-submit { height: 48px; }
 }

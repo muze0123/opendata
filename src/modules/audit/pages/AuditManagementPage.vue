@@ -251,9 +251,9 @@ async function confirmExport() {
 
 <template>
   <main class="audit-page">
-    <!-- 筛选面板：条件 + 查询/重置/筛选设置在同一个换行容器中，操作组自然紧跟最后一个筛选条件 -->
+    <!-- 筛选面板（2026-11-09 用户裁决）：字段名在上、控件在下，查询/重置/筛选设置紧跟最后一个条件 -->
     <form class="audit-filter-panel" @submit.prevent="applyFilters">
-        <!-- 字段与控件同一行：label 右对齐、控件 200px 左对齐、组内不换行；字段顺序与显隐由筛选条件设置驱动 -->
+        <!-- 字段顺序与显隐由筛选条件设置驱动；单元统一 12px / 4px / 200px / 16px 栅栏 -->
         <div v-for="key in visibleFilterKeys" :key="key" class="audit-filter-field">
           <label class="app-field-label" :for="`audit-filter-${key}`">{{ t(`audit.filters.${key}`) }}</label>
           <a-range-picker
@@ -507,14 +507,14 @@ async function confirmExport() {
    筛选面板与数据列表为两个独立白色业务面板（--app-surface），模块间距 16px */
 .audit-page { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: calc(100dvh - 88px); font-size: 14px; }
 
-/* 筛选面板：字段与操作组在同一换行容器，操作组紧跟最后一个筛选条件（单元间距统一 16px，2026-10-25 裁决） */
-.audit-filter-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-width: 0; padding: 16px; border-radius: 2px; background: var(--app-surface); }
-/* DESIGN.md · Filter geometry：字段（label）右对齐 + 控件 200px 左对齐同一行，字段与控件之间 8px，组内不换行 */
-.audit-filter-field { display: grid; grid-template-columns: max-content 200px; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; }
-.audit-filter-field label { color: var(--color-text-2); text-align: right; line-height: 22px; }
+/* 筛选面板（2026-11-09 用户裁决）：字段名在上、控件在下，12px / 4px / 左对齐 / 200px；
+   单元与操作组统一 16px 栅栏换行分布，查询/重置/筛选设置紧跟最后一个条件右侧且左对齐 */
+.audit-filter-panel { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--mt-ds-space-4); min-width: 0; padding: var(--mt-ds-space-4); border-radius: var(--mt-ds-control-radius); background: var(--app-surface); }
+.audit-filter-field { display: grid; grid-template-columns: minmax(0, var(--mt-ds-filter-width)); align-items: start; justify-items: start; gap: var(--mt-ds-space-1); min-width: 0; }
+.audit-filter-field .app-field-label { font-size: var(--mt-ds-font-caption); font-weight: var(--mt-ds-weight-body); line-height: var(--mt-ds-line-caption); text-align: left; padding: 0; white-space: nowrap; }
 /* :deep() 穿透——Arco a-select/a-range-picker 根元素不携带父组件 scoped 属性，普通 scoped 宽度规则不命中 */
-.audit-filter-panel :deep(.audit-filter) { width: 200px; }
-.audit-filter-actions { display: flex; align-items: center; gap: 8px; }
+.audit-filter-panel :deep(.audit-filter) { width: var(--mt-ds-filter-width); max-width: 100%; }
+.audit-filter-actions { display: flex; align-items: center; gap: var(--mt-ds-space-4); }
 .audit-icon-button { display: inline-grid; width: 32px; height: 32px; padding: 0; place-items: center; }
 
 /* 数据列表 */
@@ -529,8 +529,8 @@ async function confirmExport() {
 /* DESIGN.md · Table：白底、无外框、无斑马纹、行间单线分隔（全局统一处理） */
 .audit-page :deep(.arco-table) { border: 0; }
 .audit-page :deep(.arco-table-container) { border: 0; }
-.audit-page :deep(.arco-table-th) { height: 44px; padding: 0 12px; border-bottom: 1px solid var(--app-divider); color: var(--color-text-1); background: var(--app-table-header); font-size: 14px; font-weight: 600; line-height: 22px; white-space: nowrap; text-align: left; }
-.audit-page :deep(.arco-table-td) { height: 52px; padding: 8px 12px; border-bottom: 1px solid var(--app-divider); background: var(--app-surface); font-size: 14px; line-height: 22px; white-space: nowrap; text-align: left; }
+.audit-page :deep(.arco-table-th) { height: 44px; padding: 0 12px; border-bottom: 1px solid var(--app-divider); color: var(--color-text-1); background: var(--app-table-header); font-size: var(--mt-ds-font-body); font-weight: var(--mt-ds-weight-body); line-height: var(--mt-ds-line-body); white-space: nowrap; text-align: left; }
+.audit-page :deep(.arco-table-td) { height: 52px; padding: 8px 12px; border-bottom: 1px solid var(--app-divider); background: var(--app-surface); font-size: var(--mt-ds-font-body); font-weight: var(--mt-ds-weight-body); line-height: var(--mt-ds-line-body); white-space: nowrap; text-align: left; }
 .audit-page :deep(.arco-table-tr:hover .arco-table-td) { background: var(--color-fill-1); }
 
 .audit-target { display: grid; gap: 2px; min-width: 0; line-height: 18px; }
@@ -553,11 +553,13 @@ async function confirmExport() {
 .audit-drawer-group { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 2px; background: var(--app-surface); }
 
 @media (max-width: 900px) {
-  .audit-filter-panel { align-items: stretch; flex-direction: column; }
-  .audit-filter-field { grid-template-columns: max-content minmax(0, 1fr); }
-  .audit-filter-panel :deep(.audit-filter) { width: 100%; }
-  .audit-filter-actions { justify-content: flex-end; }
   .audit-pagination { justify-content: flex-start; }
   .pagination-total { width: 100%; margin-right: 0; }
+}
+/* 窄屏：每个筛选单元独占一行、控件占满可用宽度（DESIGN.md · Filter geometry）。 */
+@media (max-width: 760px) {
+  .audit-filter-panel { align-items: stretch; }
+  .audit-filter-field { grid-template-columns: minmax(0, 1fr); width: 100%; }
+  .audit-filter-panel :deep(.audit-filter) { width: 100%; }
 }
 </style>

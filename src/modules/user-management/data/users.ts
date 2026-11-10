@@ -55,7 +55,7 @@ export interface UserRecord {
   lastLogin: string;
   /** 备注 */
   note: string;
-  /** 是否主管理员（不可禁用 / 删除） */
+  /** 是否超级管理员（不可编辑 / 禁用 / 删除） */
   owner: boolean;
 }
 
@@ -79,7 +79,7 @@ export const departments: Department[] = [
 
 /** 角色演示数据：仅名称，供用户分配。 */
 export const roles: Role[] = reactive([
-  { id: 'r0', name: '管理员' },
+  { id: 'r0', name: '超级管理员' },
   { id: 'r1', name: '部门管理员' },
   { id: 'r2', name: '数据管理员' },
   { id: 'r3', name: '合规专员' },

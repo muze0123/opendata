@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
-import { IconPlus, IconSettings, IconMore, IconSearch, IconRefresh, IconLeft, IconRight } from '@arco-design/web-vue/es/icon';
+import { IconMore, IconPlus, IconSettings, IconSearch, IconRefresh, IconLeft, IconRight } from '@arco-design/web-vue/es/icon';
 import ColumnSettingsPopover, { type ColumnSettingsItem } from '../../../shared/components/ColumnSettingsPopover.vue';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog.vue';
 import { roles } from '../../user-management/data/users';
@@ -87,7 +87,7 @@ const title = computed(() => readOnly.value ? t('roleManagement.detail') : editi
       <section class="role-panel">
         <div class="role-toolbar"><a-button type="primary" @click="open('new')"><template #icon><IconPlus /></template>{{ t('roleManagement.new') }}</a-button></div>
         <a-table row-key="id" :data="visibleRecords" :columns="columns" :pagination="false" size="large" :bordered="false" :scroll="{ x: 760 }">
-          <template #operations="{ record }"><div class="row-actions"><a-button type="text" @click="open('detail', record.id)">{{ t('roleManagement.detail') }}</a-button><template v-if="record.id !== 'r0'"><a-button type="text" @click="open('edit', record.id)">{{ t('roleManagement.edit') }}</a-button><a-dropdown trigger="hover" position="br" content-class="row-more-dropdown"><a-button type="text" size="mini" :aria-label="t('roleManagement.more')" :title="t('roleManagement.more')"><IconMore /></a-button><template #content><a-doption class="danger-option" @click="requestDelete(record.id)">{{ t('roleManagement.delete') }}</a-doption></template></a-dropdown></template></div></template>
+          <template #operations="{ record }"><div class="row-actions"><a-link @click="open('detail', record.id)">{{ t('roleManagement.detail') }}</a-link><template v-if="record.id !== 'r0'"><a-link @click="open('edit', record.id)">{{ t('roleManagement.edit') }}</a-link><a-dropdown :trigger="['hover', 'click']" position="br" popup-container="body" content-class="row-more-dropdown" arrow-class="row-more-arrow" show-arrow><button type="button" class="role-row-more" :aria-label="t('roleManagement.more')" :title="t('roleManagement.more')"><IconMore :size="16" /></button><template #content><a-doption class="row-more-danger" @click="requestDelete(record.id)">{{ t('roleManagement.delete') }}</a-doption></template></a-dropdown></template></div></template>
           <template #empty><a-empty :description="t('roleManagement.empty')" /></template>
         </a-table>
         <nav class="role-pagination app-pagination" :aria-label="t('audit.table.navigation')">
@@ -138,9 +138,12 @@ const title = computed(() => readOnly.value ? t('roleManagement.detail') : editi
 .roles-page { display: grid; gap: 12px; min-width: 0; }
 .role-panel, .role-filters, .role-header { padding: 16px; background: var(--app-surface); }
 .role-header, .row-actions, .list-settings { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.role-filters { display:flex; flex-wrap:wrap; align-items:center; gap:16px; border-radius:2px; }
-.filter-field { display:grid; grid-template-columns:max-content 200px; align-items:center; gap:8px; }
-.list-settings { margin-left:auto; }
+/* 筛选条（2026-11-09 用户裁决）：字段名在上、控件在下，12px / 4px / 左对齐 / 200px，
+   条件与查询/重置/列设置统一 16px 栅栏换行分布，按钮紧跟最后一个条件右侧且左对齐 */
+.role-filters { display:flex; flex-wrap:wrap; align-items:flex-end; gap:var(--mt-ds-space-4); border-radius:var(--mt-ds-control-radius); }
+.filter-field { display:grid; grid-template-columns:minmax(0, var(--mt-ds-filter-width)); align-items:start; justify-items:start; gap:var(--mt-ds-space-1); min-width:0; }
+.filter-field :deep(.app-filter-control) { width:var(--mt-ds-filter-width); max-width:100%; }
+.list-settings { margin-left:0; gap:var(--mt-ds-space-4); }
 .role-header { justify-content:space-between; position:sticky; top:56px; z-index:5; }
 h2 { font-size:16px; font-weight:600; line-height:24px; margin:0 0 12px; padding:8px 0; color:var(--color-text-1); }
 .role-toolbar { margin-bottom:16px; }
@@ -150,18 +153,28 @@ h2 { font-size:16px; font-weight:600; line-height:24px; margin:0 0 12px; padding
 .pagination-total { margin-right:8px; }
 .pagination-pages { display:flex; align-items:center; gap:8px; margin-right:8px; }
 .role-details :deep(.arco-descriptions-item-value) { overflow-wrap:anywhere; white-space:pre-wrap; }
-.role-filters .app-field-label { text-align:right; }
-.roles-page :deep(.arco-table-th) { background:var(--app-table-header); text-align:left; font-weight:600; }
-.roles-page :deep(.arco-table-td) { border-bottom:1px solid var(--app-divider); }
+.role-filters .app-field-label { font-size:var(--mt-ds-font-caption); font-weight:var(--mt-ds-weight-body); line-height:var(--mt-ds-line-caption); text-align:left; padding:0; white-space:nowrap; }
+/* DESIGN.md · Data-list text weight：表头与单元格内所有文字统一 400 */
+.roles-page :deep(.arco-table-th) { background:var(--app-table-header); text-align:left; font-weight:var(--mt-ds-weight-body); }
+.roles-page :deep(.arco-table-td) { border-bottom:1px solid var(--app-divider); font-weight:var(--mt-ds-weight-body); }
 .role-form { width:500px; max-width:100%; }
 .required, .error { color:var(--app-color-danger); }.required { margin-right:4px; }
-.row-actions { gap:12px; flex-wrap:nowrap; }.row-actions :deep(.arco-btn-text) { padding:0; }
+.row-actions { gap:var(--mt-ds-space-3); flex-wrap:nowrap; }
+.row-actions :deep(.arco-link) { font-weight:var(--mt-ds-weight-body); }
+.role-row-more { display:inline-grid; width:24px; height:24px; padding:0; place-items:center; border:0; border-radius:var(--mt-ds-control-radius); background:transparent; color:var(--color-text-3); cursor:pointer; }
+.role-row-more:hover { background:var(--color-fill-1); color:var(--color-text-2); }
+.role-row-more:focus-visible { outline:2px solid var(--app-accent); outline-offset:2px; }
 .role-panel > :deep(.arco-pagination) { margin-top:16px; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
 .matrix-scroll { overflow-x:auto; }.permission-matrix { border-collapse:collapse; width:100%; min-width:780px; text-align:left; }
 .permission-matrix th, .permission-matrix td { padding:12px; border:1px solid var(--app-divider); }
-.permission-matrix th { background:var(--app-table-header); font-weight:600; }
+.permission-matrix th { background:var(--app-table-header); font-weight:var(--mt-ds-weight-body); }
 .permission-matrix th:nth-child(1), .permission-matrix th:nth-child(2) { width:180px; }
 .permission-actions { display:flex; flex-wrap:wrap; gap:12px 24px; }
-@media(max-width:1000px) { .filter-field { grid-template-columns: max-content minmax(120px,200px); }.list-settings { margin-left:0; } }
+/* 窄屏：每个筛选单元独占一行、控件占满可用宽度（DESIGN.md · Filter geometry）。 */
+@media(max-width:760px) {
+  .role-filters { align-items:stretch; }
+  .filter-field { grid-template-columns:minmax(0, 1fr); width:100%; }
+  .filter-field :deep(.app-filter-control) { width:100%; }
+}
 </style>
 <style>.danger-option { color:var(--app-color-danger) !important; }</style>

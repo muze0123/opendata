@@ -90,3 +90,6 @@ temp/
 
 # Local persistent workflow database
 .workflow-data/
+
+# Java workflow service build output
+server/warmflow/target/

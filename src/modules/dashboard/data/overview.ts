@@ -278,49 +278,14 @@ export const overviewNotices: OverviewNotice[] = [
 
 export interface OverviewApp {
   id: string;
-  icon: 'csms' | 'vsoc' | 'tara' | 'operations';
+  icon: 'csms' | 'vsoc' | 'tara' | 'operations' | 'hmg';
+  url?: string;
   group: "mine" | "more";
   initialStatus: "active" | "inactive";
   new?: boolean;
 }
 
 export const overviewApps: OverviewApp[] = [
-  {
-    id: "csms",
-    icon: "csms",
-    group: "mine",
-    initialStatus: "active",
-    new: true,
-  },
-  {
-    id: "vsoc",
-    icon: "vsoc",
-    group: "mine",
-    initialStatus: "inactive",
-  },
-  {
-    id: "tara-1",
-    icon: "tara",
-    group: "more",
-    initialStatus: "inactive",
-    new: true,
-  },
-  {
-    id: "operations-1",
-    icon: "operations",
-    group: "more",
-    initialStatus: "inactive",
-  },
-  {
-    id: "tara-2",
-    icon: "tara",
-    group: "more",
-    initialStatus: "inactive",
-  },
-  {
-    id: "operations-2",
-    icon: "operations",
-    group: "more",
-    initialStatus: "inactive",
-  },
+  // 2026-11-09 用户裁决：HMG「启动」新开标签页进入本地 HMG 应用平台工作台（dev server 5175）。
+  { id: "hmg", icon: "hmg", group: "mine", initialStatus: "active", url: "http://127.0.0.1:5175/workbench" },
 ];

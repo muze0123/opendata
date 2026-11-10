@@ -221,8 +221,8 @@ function downloadErrorData(task: ImportTaskRecord) {
         <a-tab-pane key="download" :title="t('taskCenter.tabs.download')" />
       </a-tabs>
 
-      <!-- 筛选栅栏（DESIGN.md · Filter strip packing）：label + 200px 控件为一个 hug-content 单元，
-           16px 行列间距换行排布；查询/重置紧跟最后一个筛选单元。 -->
+      <!-- 筛选栅栏（2026-11-09 用户裁决）：字段名在上、控件在下，12px / 4px / 左对齐 / 200px，
+           16px 行列间距换行排布；查询/重置紧跟最后一个筛选单元右侧且左对齐。 -->
       <form class="tc-filters" @submit.prevent="applyFilters">
         <div v-for="key in FILTER_KEYS" :key="key" class="tc-filter-field">
           <label class="app-field-label tc-filter-label" :for="`tc-filter-${key}`">{{ t(`taskCenter.filters.${key}`) }}</label>
@@ -387,24 +387,29 @@ function downloadErrorData(task: ImportTaskRecord) {
 
 /* 筛选栅栏：16px 行列间距的换行容器，单元 hug content（DESIGN.md · Filter strip packing）；
    抽屉内筛选条不带底部分割线 */
+/* 筛选条（2026-11-09 用户裁决）：字段名在上、控件在下，12px / 4px / 左对齐 / 200px，
+   条件与查询/重置统一 16px 栅栏换行分布，按钮紧跟最后一个条件右侧且左对齐。 */
 .tc-filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
+  align-items: flex-end;
+  gap: var(--mt-ds-space-4);
   min-width: 0;
-  padding: 16px 0;
+  padding: var(--mt-ds-space-4) 0;
 }
 .tc-filter-field {
   display: grid;
-  grid-template-columns: max-content 200px;
-  align-items: center;
-  gap: 8px;
+  grid-template-columns: minmax(0, var(--mt-ds-filter-width));
+  align-items: start;
+  justify-items: start;
+  gap: var(--mt-ds-space-1);
   min-width: 0;
-  white-space: nowrap;
 }
-.tc-filter-label { color: var(--color-text-2); text-align: right; line-height: 22px; }
-.tc-filter-actions { display: flex; align-items: center; gap: 8px; }
+/* 筛选 select 的占位提示语「全部」使用正文黑色（2026-11-09 用户裁决）：
+   已收敛至 global.css 的 .app-filter-control 占位规则，此处不再单独覆盖 */
+.tc-filter-field .app-field-label { font-size: var(--mt-ds-font-caption); font-weight: var(--mt-ds-weight-body); line-height: var(--mt-ds-line-caption); text-align: left; padding: 0; white-space: nowrap; }
+.tc-filter-field :deep(.app-filter-control) { width: var(--mt-ds-filter-width); max-width: 100%; }
+.tc-filter-actions { display: flex; align-items: center; gap: var(--mt-ds-space-4); }
 
 /* 静态说明条：info 面、4px 圆角、无阴影（DESIGN.md · Alert） */
 .tc-note { margin-top: 16px; border-radius: 4px; }
@@ -450,7 +455,7 @@ function downloadErrorData(task: ImportTaskRecord) {
 .tc-text-primary { color: var(--app-color-primary); }
 .tc-text-success { color: var(--app-color-success); }
 .tc-text-danger { color: var(--app-color-danger); }
-.tc-strong { font-weight: 700; }
+.tc-strong { font-weight: var(--mt-ds-weight-body); }
 
 .tc-noop { color: var(--color-text-4); }
 .tc-link-disabled { color: var(--color-text-4); cursor: not-allowed; }
@@ -479,9 +484,10 @@ function downloadErrorData(task: ImportTaskRecord) {
 }
 .pagination-jump-label, .pagination-total-pages { color: var(--color-text-3); font-size: 14px; line-height: 22px; }
 
-@media (max-width: 900px) {
-  .tc-filters { align-items: stretch; flex-direction: column; }
-  .tc-filter-field { grid-template-columns: max-content minmax(0, 1fr); }
-  .tc-filter-actions { justify-content: flex-end; }
+/* 窄屏：每个筛选单元独占一行、控件占满可用宽度（DESIGN.md · Filter geometry）。 */
+@media (max-width: 760px) {
+  .tc-filters { align-items: stretch; }
+  .tc-filter-field { grid-template-columns: minmax(0, 1fr); width: 100%; }
+  .tc-filter-field :deep(.app-filter-control) { width: 100%; }
 }
 </style>

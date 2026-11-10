@@ -82,7 +82,7 @@ body {
   --app-login-bg-fill: #06181C;
   --app-assistant-shadow: 0 4px 12px rgba(0, 0, 0, .16);
   --app-assistant-panel-shadow: 0 8px 28px rgba(0, 0, 0, .18);
-  --app-import-help-surface: #F8FBFF;
+  --app-import-help-surface: #DFF7F9;
   --app-on-accent-disabled: rgba(255, 255, 255, 0.4);
   --app-dashboard-gradient-end: #14e5c5;
   --app-skeleton-shine: rgba(255, 255, 255, 0.72);
@@ -120,4 +120,5 @@ html body[arco-theme='dark'] {
   --app-confirm-desc: var(--color-text-3);
   --app-confirm-icon: var(--app-color-warning);
   --app-skeleton-shine: rgba(255, 255, 255, 0.12);
+  --app-import-help-surface: #123B41;
 }

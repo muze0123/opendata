@@ -86,46 +86,10 @@ export interface Template {
   content: string;
   attachments: Attachment[];
 }
-export interface Task {
-  id: string;
-  node: WorkflowNode;
-  assignees: string[];
-  votes?: string[];
-  status: string;
-}
-export interface Instance {
-  id: string;
-  definitionId: string;
-  definition: Definition;
-  status: string;
-  revision?: number;
-  tasks: Task[];
-  context: Record<string, unknown>;
-  history: {
-    id: string;
-    code: string;
-    nodeId?: string;
-    actor?: string;
-    at: string;
-    comment?: string;
-  }[];
-  createdAt: string;
-}
-export interface Activity {
-  id: string;
-  name: string;
-  planEnd: string;
-  extensionPending: boolean;
-}
 export interface Bootstrap {
   definitions: Definition[];
   templates: Template[];
-  instances: Instance[];
-  activities: Activity[];
-  risks: { id: string; description: string; status: string }[];
-  messages: { id: string; type: string; at: string }[];
   dictionaries: Record<string, string[]>;
-  adapters: Record<string, boolean>;
 }
 export const newCondition = (): Condition => ({
   id: crypto.randomUUID(),

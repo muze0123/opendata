@@ -21,6 +21,13 @@ const pendingRoutes = topNavigationItems
   }));
 
 /**
+ * 顶部菜单的默认落地页：始终取该菜单 children 的第一项，使「切换顶部菜单 →
+ * 打开其下第一个功能模块」成为统一规则；菜单顺序调整后 redirect 自动跟随。
+ */
+const firstChildPath = (name: string, fallback: string): string =>
+  topNavigationItems.find(item => item.name === name)?.children?.[0]?.path ?? fallback;
+
+/**
  * 平台路由。
  * 顶部导航四项（首页 / 任务中心 / 基础数据库 / 系统设置）驱动主框架；
  * 系统设置的 7 个二级页面中，仅「用户管理」「审计管理」为实页面，其余挂占位页。
@@ -30,6 +37,8 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     ...(import.meta.env.DEV ? [{ path: "/__design-system", name: "design-system-patterns", component: () => import("../design/patterns/DesignPatternsPage.vue"), meta: { layout: "product" } }] : []),
+    { path: '/vehicles/directories/new', name: 'vehicle-directory-new', component: () => import('../modules/vehicles/pages/VehiclesPage.vue'), meta: { layout: 'product', requiresAuth: true } },
+    { path: '/vehicles/directories/:id/edit', name: 'vehicle-directory-edit', component: () => import('../modules/vehicles/pages/VehiclesPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/vehicles', name: 'vehicles', component: () => import('../modules/vehicles/pages/VehiclesPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     {
       path: '/',
@@ -61,6 +70,12 @@ const router = createRouter({
       meta: { layout: 'product', requiresAuth: true },
     },
     {
+      path: '/tasks/:taskId/application',
+      name: 'task-application-demo',
+      component: () => import('../modules/dashboard/pages/AppDemoPage.vue'),
+      meta: { layout: 'product', requiresAuth: true },
+    },
+    {
       path: '/tasks/:taskId',
       name: 'task-detail',
       component: () => import('../modules/task-center/pages/TaskDetailPage.vue'),
@@ -75,12 +90,12 @@ const router = createRouter({
     {
       path: '/data',
       name: 'data',
-      redirect: '/data/regulations',
+      redirect: firstChildPath('data', '/data/parts'),
       meta: { layout: 'product', requiresAuth: true },
     },
     {
       path: '/settings',
-      redirect: '/settings/users',
+      redirect: firstChildPath('settings', '/settings/users'),
     },
     {
       path: '/settings/users',
@@ -104,13 +119,17 @@ const router = createRouter({
     { path: '/settings/workflow', name: 'workflow', component: () => import('../modules/workflow/pages/WorkflowPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/settings/workflow/:id/:mode(edit|detail)', name: 'workflow-editor', component: () => import('../modules/workflow/pages/WorkflowPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/settings/numbering', name: 'numbering', component: () => import('../modules/numbering/pages/NumberingRulesPage.vue'), meta: { layout: 'product', requiresAuth: true } },
+    { path: '/data/certificates/:id', name: 'certificate-detail', component: () => import('../modules/certificates/pages/CertificateDetailPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/data/certificates', name: 'certificates', component: () => import('../modules/certificates/pages/CertificatesPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/data/regulations', name: 'regulations', component: () => import('../modules/regulations/pages/RegulationsPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/data/parts', name: 'parts', component: () => import('../modules/parts/pages/PartsPage.vue'), meta: { layout: 'product', requiresAuth: true } },
+    { path: '/data/parts/:id/relations', name: 'part-relations', component: () => import('../modules/parts/pages/PartRelationsPage.vue'), meta: { layout: 'product', requiresAuth: true } },
+    { path: '/data/parts/:id/relations/projects/:projectId', name: 'part-related-project', component: () => import('../modules/parts/pages/PartRelationsPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/data/parts/:id', name: 'part-detail', component: () => import('../modules/parts/pages/PartsPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/settings/version-history', name: 'version-history', component: () => import('../modules/version-history/pages/VersionHistoryPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/settings/messages', name: 'message-settings', component: () => import('../modules/message-settings/pages/MessageSettingsPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/settings/account', name: 'settings-account', component: () => import('../modules/account/pages/AccountPage.vue'), meta: { layout: 'product', requiresAuth: true } },
+    { path: '/data/regulations/:id', name: 'regulation-detail', component: () => import('../modules/regulations/pages/RegulationDetailPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     ...pendingRoutes,
     {
       path: '/audit',

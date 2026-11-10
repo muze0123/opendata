@@ -1,4 +1,4 @@
-import { reactive } from 'vue';
+import { reactive, watch } from 'vue';
 import { TASK_ORCHESTRATIONS } from './orchestrations';
 
 export type TaskStatus = 'pending' | 'in-progress' | 'completed' | 'rejected' | 'recalled' | 'cancelled';
@@ -65,6 +65,8 @@ export interface TaskRecord {
   records: TaskActionRecord[];
   content: string;
   handlingOpinion: string;
+  handlingAttachments?: TaskAttachment[];
+  copiedRoles?: string[];
   /** 新建任务抽屉所选的编排 ID（1:1 复刻自评项目）；复制预填与详情回溯用 */
   orchestrationId?: string;
 }
@@ -79,7 +81,7 @@ const makeFlow = (status: TaskStatus, assignees: string[]): TaskFlowNode[] => {
   const reviewDone = status === 'completed' || status === 'rejected' || status === 'recalled' || status === 'cancelled';
   return [
     { id: 'submit', type: 'submit', title: '提交', assignee: '发起人：张三', status: 'completed' },
-    { id: 'review', type: 'review', title: '审核', assignee: `指定成员：${assignees[0] ?? '请选择'}`, status: reviewDone ? 'completed' : status === 'in-progress' ? 'current' : 'pending' },
+    { id: 'review', type: 'review', title: '审核', assignee: `指定成员：${assignees[0] ?? '请选择'}`, status: reviewDone ? 'completed' : 'current' },
     { id: 'end', type: 'end', title: '结束', assignee: terminal ? '流程已结束' : '流程未结束', status: terminal ? 'completed' : 'pending' },
   ];
 };
@@ -103,12 +105,12 @@ const seedTasks: TaskRecord[] = [
   {
     id: 'T-20261004', name: '项目延期申请', description: '确认项目延期申请及后续计划。', status: 'completed', priority: 'medium',
     createdAt: '2026-03-20 11:00', updatedAt: '2026-03-28 11:30', deadline: '2026-03-25 18:00', sourceApp: 'modelProject', targetApp: 'modelProject', project: 'mtEvB', vehicle: 'MT-EV-B', creator: '李四', assignees: ['张三'], copiedUsers: ['王五'],
-    attachments: [], flow: makeFlow('completed', ['张三']), records: [{ id: 'r-5', action: 'submit', operator: '李四', detail: '创建任务并提交', time: '2026-03-20 11:00' }, { id: 'r-6', action: 'approve', operator: '张三', detail: '审核通过，任务结束', time: '2026-03-28 11:30' }], content: '确认延期原因、影响范围和后续排期。', handlingOpinion: '已确认延期计划。',
+    attachments: [], flow: makeFlow('completed', ['张三']), records: [{ id: 'r-5', action: 'submit', operator: '李四', detail: '创建任务并提交', time: '2026-03-20 11:00', duration: '耗时 8 分钟' }, { id: 'r-6', action: 'approve', operator: '张三', detail: '审核通过，任务结束', time: '2026-03-28 11:30', duration: '耗时 15 分钟' }], content: '确认延期原因、影响范围和后续排期。', handlingOpinion: '已确认延期计划。',
   },
   {
     id: 'T-20261005', name: 'CSMS 交付物审批', description: '审批 CSMS 项目交付物。', status: 'rejected', priority: 'low',
     createdAt: '2026-03-26 09:00', updatedAt: '2026-03-27 16:04', deadline: '2026-04-01 18:00', sourceApp: 'csms', targetApp: 'csms', project: 'mtSedC', vehicle: 'MT-SED-C', creator: '赵六', assignees: ['张三'], copiedUsers: [],
-    attachments: [], flow: makeFlow('rejected', ['张三']), records: [{ id: 'r-7', action: 'submit', operator: '赵六', detail: '创建任务并提交', time: '2026-03-26 09:00' }, { id: 'r-8', action: 'reject', operator: '张三', detail: '材料不完整，退回补充', time: '2026-03-27 16:04' }], content: '请审批交付物并反馈审批意见。', handlingOpinion: '材料不完整，请补充测试报告。',
+    attachments: [], flow: makeFlow('pending', ['张三']), records: [{ id: 'r-7', action: 'submit', operator: '赵六', detail: '创建任务并提交', time: '2026-03-26 09:00' }, { id: 'r-8', action: 'reject', operator: '张三', detail: '材料不完整，退回补充', time: '2026-03-27 16:04' }], content: '请审批交付物并反馈审批意见。', handlingOpinion: '材料不完整，请补充测试报告。',
   },
   {
     id: 'T-20261006', name: '固件包扫描任务', description: '完成固件包扫描并输出结果。', status: 'cancelled', priority: 'medium',
@@ -118,7 +120,7 @@ const seedTasks: TaskRecord[] = [
   {
     id: 'T-20261007', name: '安全策略评审', description: '评审车型项目安全策略。', status: 'completed', priority: 'urgent',
     createdAt: '2026-03-21 09:20', updatedAt: '2026-03-24 17:30', deadline: '2026-03-26 18:00', sourceApp: 'modelProject', targetApp: 'tianshu', project: 'mtSuvA', vehicle: 'MT-SUV-A', creator: '周明', assignees: ['王五'], copiedUsers: ['张三'],
-    attachments: [], flow: makeFlow('completed', ['王五']), records: [{ id: 'r-11', action: 'submit', operator: '周明', detail: '创建任务并提交', time: '2026-03-21 09:20' }, { id: 'r-12', action: 'approve', operator: '王五', detail: '审核通过，任务结束', time: '2026-03-24 17:30' }], content: '完成安全策略文档评审。', handlingOpinion: '评审通过。',
+    attachments: [], flow: makeFlow('completed', ['王五']), records: [{ id: 'r-11', action: 'submit', operator: '周明', detail: '创建任务并提交', time: '2026-03-21 09:20', duration: '耗时 10 分钟' }, { id: 'r-12', action: 'approve', operator: '王五', detail: '审核通过，任务结束', time: '2026-03-24 17:30', duration: '耗时 22 分钟' }], content: '完成安全策略文档评审。', handlingOpinion: '评审通过。',
   },
   {
     id: 'T-20261008', name: '供应商整改项确认', description: '确认供应商整改项闭环状态。', status: 'in-progress', priority: 'medium',
@@ -127,7 +129,51 @@ const seedTasks: TaskRecord[] = [
   },
 ];
 
-export const taskRecords = reactive<TaskRecord[]>(seedTasks);
+// 覆盖终态、内部办理和分页场景，记录保留各自动作语义。
+const mockStatuses: TaskStatus[] = ['pending', 'in-progress', 'completed', 'recalled', 'cancelled'];
+const scenarioTasks = mockStatuses.map((status, index): TaskRecord => ({
+  ...seedTasks[0]!,
+  id: `TSK-${String(index + 1).padStart(4, '0')}`,
+  name: `任务流程验证 ${index + 1}`,
+  status,
+  sourceApp: 'tianshu',
+  targetApp: 'tianshu',
+  vehicle: 'MT-SUV-A / 默认配置',
+  assignees: [currentTaskUser],
+  attachments: [],
+  flow: status === 'pending' ? [
+    { id: 'start', type: 'submit', title: '提交', assignee: '发起人：张三', status: 'completed' },
+    ...makeFlow(status, [currentTaskUser]).map((node, index) => ({ ...node, status: index === 0 ? 'current' as const : 'pending' as const })),
+  ] : makeFlow(status, [currentTaskUser]),
+  records: [{ id: `scenario-${index}`, action: status === 'cancelled' ? 'cancel' : status === 'recalled' ? 'recall' : status === 'completed' ? 'finish' : 'submit', operator: currentTaskUser, detail: '', time: '2026-11-09 09:00:00', duration: status === 'completed' ? '耗时 18 分钟' : undefined }],
+}));
+const initialTasks: TaskRecord[] = [...seedTasks.map(task => ({ ...task, createdAt: task.createdAt.length === 16 ? task.createdAt + ':00' : task.createdAt, updatedAt: task.updatedAt.length === 16 ? task.updatedAt + ':00' : task.updatedAt, status: task.status === 'rejected' ? 'pending' as const : task.status })), ...scenarioTasks];
+const TASK_SESSION_KEY = 'opendata-task-session-v2';
+function restoreTasks(): TaskRecord[] {
+  try {
+    const stored: unknown = JSON.parse(sessionStorage.getItem(TASK_SESSION_KEY) ?? 'null');
+    if (Array.isArray(stored) && stored.every(item =>
+      item && typeof item.id === 'string' && typeof item.name === 'string'
+      && mockStatuses.includes(item.status) && Array.isArray(item.flow)
+      && Array.isArray(item.records) && Array.isArray(item.attachments)
+      && Array.isArray(item.assignees) && Array.isArray(item.copiedUsers)
+    )) return (stored as TaskRecord[]).map(task => ({
+      ...task,
+      flow: task.flow[0]?.status === 'current' && !task.flow.some(node => node.id === 'start')
+        ? [{ id: 'start', type: 'submit', title: '提交', assignee: `发起人：${task.creator}`, status: 'completed' }, ...task.flow]
+        : ['pending', 'in-progress'].includes(task.status) && !task.flow.some(node => node.status === 'current')
+        ? makeFlow(task.status, task.assignees)
+        : task.flow,
+    }));
+  } catch { /* 无效缓存使用初始演示数据。 */ }
+  return initialTasks;
+}
+export const taskRecords = reactive<TaskRecord[]>(restoreTasks());
+watch(taskRecords, records => {
+  try { sessionStorage.setItem(TASK_SESSION_KEY, JSON.stringify(records)); }
+  catch { /* 存储不可用时，当前页面仍可继续办理。 */ }
+}, { deep: true, flush: 'sync' });
+
 
 export const taskStatusLabels: Record<TaskStatus, string> = {
   pending: '待处理', 'in-progress': '进行中', completed: '已完成', rejected: '已驳回', recalled: '已撤回', cancelled: '已作废',
@@ -141,7 +187,7 @@ export function getTask(taskId: string) {
 function nowText() {
   const date = new Date();
   const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 export function appendTaskRecord(task: TaskRecord, action: TaskActionCode, detail: string) {
@@ -173,19 +219,19 @@ export function createTaskFromDrawer(input: CreateTaskDrawerInput): TaskRecord {
   const flow: TaskFlowNode[] = orchestration
     ? orchestration.nodes.map((node, index) => ({
       id: `${node.kind}-${index}`, type: node.kind, title: node.label, assignee: node.detail,
-      status: index === 0 ? 'completed' : 'pending',
+      status: index === 0 ? 'completed' : index === 1 ? 'current' : 'pending',
     }))
     : makeFlow('pending', [memberOptions[1] ?? '李四']);
   const timestamp = nowText();
   const record: TaskRecord = {
-    id: `T-${Date.now()}`,
+    id: `TSK-${String(Math.max(0, ...taskRecords.map(task => Number(task.id.replace(/^TSK-/, '')) || 0)) + 1).padStart(4, '0')}`,
     name: input.taskName,
     description: input.taskDescription ?? '',
     status: 'pending',
     priority: input.priority,
     createdAt: timestamp,
     updatedAt: timestamp,
-    deadline: input.deadline || '2026-10-31 18:00',
+    deadline: input.deadline || '',
     sourceApp: 'tianshu', targetApp: 'tianshu', project: 'aionY', vehicle: 'AION Y',
     creator: currentTaskUser,
     assignees: [memberOptions[1] ?? '李四'],
@@ -195,7 +241,7 @@ export function createTaskFromDrawer(input: CreateTaskDrawerInput): TaskRecord {
     })),
     flow,
     records: [{ id: `r-${Date.now()}`, action: 'submit', operator: currentTaskUser, detail: '创建任务并提交', time: timestamp }],
-    content: input.taskDescription || '本任务暂无额外内容。',
+    content: '',
     handlingOpinion: '',
     orchestrationId: input.orchestrationId,
   };

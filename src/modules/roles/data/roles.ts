@@ -23,7 +23,7 @@ export const permissionIds = enabledApps.flatMap(app => app.rows.flatMap(row => 
 export interface RoleConfig { id: string; description: string; permissions: string[] }
 export const useRoleStore = defineStore('roles', () => {
   const users = useUserStore();
-  const configs = reactive<RoleConfig[]>(roles.map((role, i) => ({ id: role.id, description: i === 0 ? '系统内置管理员，拥有全部模拟操作权限。' : '', permissions: i === 0 ? [...permissionIds] : [permissionIds[i % permissionIds.length]] })));
+  const configs = reactive<RoleConfig[]>(roles.map((role, i) => ({ id: role.id, description: i === 0 ? '系统内置超级管理员，拥有全部模拟操作权限。' : '', permissions: i === 0 ? [...permissionIds] : [permissionIds[i % permissionIds.length]] })));
   function linked(id: string) { return users.users.some(user => user.roleIds.includes(id)); }
   function save(id: string | undefined, name: string, description: string, permissions: string[]) {
     if (id === 'r0') throw new Error('protected');

@@ -10,7 +10,7 @@ import {
 
 type Locale = 'zh-CN' | 'en-US';
 
-/** 导入 / 模板列（与 i18n import.columnHint 一致）。 */
+/** 导入 / 模板列（与 i18n import.notes 一致）。 */
 const TEMPLATE_HEADERS: Record<Locale, string[]> = {
   'zh-CN': ['姓名', '登录账号', '手机号', '邮箱', '所属部门', '角色', '状态'],
   'en-US': ['Name', 'Account', 'Phone', 'Email', 'Department', 'Roles', 'Status'],
@@ -45,7 +45,7 @@ export interface UserTemplateFile {
   fileName: string;
 }
 
-/** 生成导入模板（仅表头，列与 import.columnHint、parseUserWorkbook 共用同一份定义）。 */
+/** 生成导入模板（仅表头，列与 import.notes、parseUserWorkbook 共用同一份定义）。 */
 export async function buildUserTemplate(locale: Locale): Promise<UserTemplateFile> {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'OpenData';

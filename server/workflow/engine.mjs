@@ -110,6 +110,16 @@ export function evaluate(tree, context) {
   });
   return tree.logic === "and" ? results.every(Boolean) : results.some(Boolean);
 }
+export function validateAttachments(attachments = []) {
+  if (!Array.isArray(attachments)) fail("attachments");
+  for (const file of attachments) {
+    if (!file || typeof file.name !== "string" || !file.name || file.name.length > 255 ||
+        !["application/pdf", "image/png", "image/jpeg"].includes(file.type) ||
+        !Number.isInteger(file.size) || file.size < 0 || file.size > 20 * 1024 * 1024 ||
+        typeof file.data !== "string" || !file.data.startsWith(`data:${file.type};base64,`) ||
+        Buffer.from(file.data.slice(file.data.indexOf(",") + 1), "base64").length !== file.size) fail("attachments");
+  }
+}
 export function validateDefinition(def, complete = true) {
   if (
     !def.name?.trim() ||
@@ -200,6 +210,7 @@ export function validateDefinition(def, complete = true) {
         )
           fail("message");
       }
+      if (n.message) validateAttachments(n.message.attachments);
       if (n.kind === "execute") executed = true;
     }
     return executed;

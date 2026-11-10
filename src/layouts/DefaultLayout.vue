@@ -12,7 +12,6 @@ import { useTaskCenterStore } from '../modules/task-center/stores/taskCenter';
 import { useAuthStore } from '../modules/auth/stores/auth';
 import TaskCenterDrawer from '../modules/task-center/components/TaskCenterDrawer.vue';
 import { setThemeMode, themeMode } from '../design/theme';
-import GlobalAssistant from './GlobalAssistant.vue';
 import opendataLogo from '../assets/opendata-logo.svg';
 
 interface Notice {
@@ -132,7 +131,7 @@ watch([() => route.name, () => localeStore.locale], revealActiveNavigation);
             <IconList :size="19" />
             <span
               v-if="taskCenterStore.processingCount > 0"
-              class="shell-task-badge"
+              class="shell-count-badge"
               aria-hidden="true"
             >{{ taskCenterStore.processingCount > 99 ? '99+' : taskCenterStore.processingCount }}</span>
           </button>
@@ -170,7 +169,6 @@ watch([() => route.name, () => localeStore.locale], revealActiveNavigation);
       </div>
     </a-layout-header>
     <a-layout-content class="default-layout-content"><slot /></a-layout-content>
-    <GlobalAssistant />
     <TaskCenterDrawer />
   </a-layout>
 </template>

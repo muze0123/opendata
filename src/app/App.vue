@@ -3,6 +3,7 @@ import { watch } from 'vue';
 import { useRoute } from 'vue-router';
 import DefaultLayout from '../layouts/DefaultLayout.vue';
 import ProductLayout from '../layouts/ProductLayout.vue';
+import GlobalAssistant from '../layouts/GlobalAssistant.vue';
 import { applyTheme, themeMode } from '../design/theme';
 import { useLocaleStore } from './stores/locale';
 
@@ -24,5 +25,7 @@ watch(themeMode, applyTheme, { immediate: true });
         <component v-if="route.meta.layout !== false" :is="Component" />
       </component>
     </router-view>
+    <!-- 全局 AI 助手：所有带布局壳的业务页可见；layout:false 的独立页（登录页、应用演示页）不显示。 -->
+    <GlobalAssistant v-if="route.meta.layout !== false" />
   </a-config-provider>
 </template>

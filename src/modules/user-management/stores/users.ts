@@ -12,7 +12,7 @@ import {
  * 用户管理数据层（Pinia）。
  *
  * 仅承载用户列表与增删改查；筛选 / 分页 / 选择态由页面层持有（与审计列表保持一致）。
- * 主管理员（owner）不可被禁用或删除，setEnabled / removeUsers 会跳过 owner。
+ * 超级管理员（owner）不可被编辑、禁用或删除，setEnabled / removeUsers 会跳过 owner。
  */
 export const useUserStore = defineStore('user-management', () => {
   const userProfile = useUserProfileStore();

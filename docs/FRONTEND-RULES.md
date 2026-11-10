@@ -59,6 +59,8 @@ Do not replace Vue with native-script business pages, React, jQuery, or a CDN-ba
 
 ## 5. Visual Standards
 
+- Business interfaces must use production-facing product language. Do not show “演示数据”, “本地模拟”, “mock”, “prototype”, “demo”, browser-session persistence, or simulated-callback notices in page content, alerts, tooltips, dialogs, empty states, button labels, or success messages. Keep implementation and integration boundaries in developer comments and delivery reports. Feedback must describe the business action and actual result without claiming an unconfirmed server save. This applies even when the underlying data or behavior is mocked.
+
 - Business pages must not render a page title, subtitle, or introductory description above the content. The shell navigation identifies the page; start directly with the toolbar, filters, or business content. Do not add generic local-demo explanations as page subtitles. Dialog, drawer, and necessary section titles remain applicable.
 
 - Read `AI-DESIGN.md` and applicable `DESIGN.md` sections before changing a page. Use its applicable Vue/Arco guidance for layout, typography, color roles, surfaces, spacing, density, responsive behavior, and accessibility. Sections explicitly marked `[Legacy]` describe a former prototype and are not automatic implementation requirements for this Vue project.
@@ -124,8 +126,8 @@ Two different mechanisms, do not mix them:
 
 - Use typed, module-scoped mock arrays/objects to drive prototype lists and views until real APIs exist. Do not hardcode repeated table rows in templates.
 - Make mock data credible for the new feature and include the states necessary to exercise its filters, badges, errors, and pagination. For a paginated prototype list, provide enough records to demonstrate more than one state/page; do not impose a list-data requirement on a login or form page.
-- Mask sensitive identifiers and credentials in sample records. Demo credentials, when explicitly needed, must be clearly identified as local mock behavior and must not be prefilled with real secrets.
-- Separate mocked results from backend claims. When integrating an API, define loading, empty, timeout, authorization, stale-response, and failure behavior from the approved contract.
+- Mask sensitive identifiers and credentials in sample records. Demo credentials, when explicitly needed, must be documented in developer-facing material and must not be prefilled with real secrets.
+- Describe mocked results and backend integration boundaries in developer comments and delivery reports. When integrating an API, define loading, empty, timeout, authorization, stale-response, and failure behavior from the approved contract.
 
 ## 8. Responsive and Accessibility Requirements
 

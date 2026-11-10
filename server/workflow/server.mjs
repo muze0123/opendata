@@ -1,3 +1,4 @@
+import { publishDefinition, synchronizeInstance } from "./warmflow.mjs";
 import http from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
@@ -6,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   builtins,
   validateDefinition,
+  validateAttachments,
   start,
   act,
   terminate,
@@ -194,11 +196,12 @@ export function dispatch(method, path, body, actor) {
         "message",
       );
       requireValue(
-        !all("template").some((t) => t.id !== id && t.name === body.name),
+        !all("template").some((t) => t.id !== id && t.name.toLowerCase() === body.name.trim().toLowerCase()),
         "duplicate",
       );
+      validateAttachments(body.attachments);
       if (id) get("template", id);
-      const item = { ...body, id: id ?? randomUUID() };
+      const item = { ...body, name: body.name.trim(), id: id ?? randomUUID() };
       put("template", item);
       return item;
     }
@@ -291,7 +294,13 @@ export function dispatch(method, path, body, actor) {
   }
   throw new DomainError("missing", 404);
 }
-const server = http.createServer(async (req, res) => {
+let requests = Promise.resolve();
+const server = http.createServer((req, res) => {
+  requests = requests.then(() => handleRequest(req, res)).catch(() => {
+    if (!res.writableEnded) { res.statusCode = 500; res.end(JSON.stringify({ code: "server" })); }
+  });
+});
+async function handleRequest(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
   try {
@@ -358,8 +367,10 @@ const server = http.createServer(async (req, res) => {
       try {
         const latest = get("instance", instance.id);
         requireValue(latest.revision === body.revision, "conflict");
+        const before = structuredClone(latest);
         completeExternal(latest, task.id);
         latest.revision = (latest.revision ?? 0) + 1;
+        await synchronizeInstance(before, latest, "external", task.id);
         effects(latest);
         put("instance", latest);
         db.exec("COMMIT");
@@ -372,12 +383,25 @@ const server = http.createServer(async (req, res) => {
     }
     db.exec("BEGIN IMMEDIATE");
     try {
+      const instanceMatch = requestPath.match(/^\/api\/workflow\/instances\/([^/]+)\//);
+      const before = instanceMatch ? get("instance", instanceMatch[1]) : undefined;
       const result = dispatch(
         req.method,
         new URL(req.url, "http://localhost").pathname,
         body,
         "u-admin",
       );
+      if (req.method === "POST" && /^\/api\/workflow\/instances(?:\/[^/]+\/(?:action|withdraw|cancel))?$/.test(requestPath)) {
+        await synchronizeInstance(before, result, body.action, body.taskId);
+        put("instance", result);
+      }
+      // The standard launcher configures Warm-Flow. Legacy isolated unit tests
+      // can still exercise the business repository without a Java process.
+      if (process.env.WORKFLOW_LEGACY_ENGINE !== "1" && req.method === "PUT" &&
+          /^\/api\/workflow\/definitions\/[^/]+\/status$/.test(requestPath) && result.enabled) {
+        result.engine = await publishDefinition(result);
+        put("definition", result);
+      }
       db.exec("COMMIT");
       res.end(JSON.stringify(result));
     } catch (e) {
@@ -402,7 +426,7 @@ const server = http.createServer(async (req, res) => {
       }),
     );
   }
-});
+}
 server.listen(Number(process.env.WORKFLOW_PORT ?? 4318), "127.0.0.1", () =>
   console.log("Workflow service: http://127.0.0.1:4318 (local development)"),
 );

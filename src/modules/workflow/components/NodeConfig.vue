@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
+import MemberPicker from "./MemberPicker.vue";
+import AttachmentField from "./AttachmentField.vue";
 import { computed } from "vue";
 import {
   PROJECT_ROLE_CODES,
@@ -34,41 +36,6 @@ function applyTemplate(id: string) {
       content: item.content,
       attachments: clone(item.attachments),
     });
-}
-async function files(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const selected = [...(input.files ?? [])];
-  if (
-    selected.some(
-      (f) =>
-        f.size > 20 * 1024 * 1024 ||
-        !["application/pdf", "image/png", "image/jpeg"].includes(f.type),
-    )
-  ) {
-    input.setCustomValidity(t("workflow.fileError"));
-    input.reportValidity();
-    return;
-  }
-  input.setCustomValidity("");
-  const attachments = await Promise.all(
-    selected.map(
-      (file) =>
-        new Promise<{ name: string; type: string; size: number; data: string }>(
-          (resolve) => {
-            const reader = new FileReader();
-            reader.onload = () =>
-              resolve({
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                data: String(reader.result),
-              });
-            reader.readAsDataURL(file);
-          },
-        ),
-    ),
-  );
-  props.node.message!.attachments = attachments;
 }
 </script>
 <template>
@@ -150,7 +117,7 @@ async function files(event: Event) {
             ><span class="app-field-label">{{
               t("workflow.assignees")
             }}</span></template
-          ><a-select
+          ><MemberPicker v-if="node.assignment.mode === 'members'" v-model="node.assignment.ids" :users="users" /><a-select v-else
             :aria-label="t('workflow.assignees')"
             v-model="node.assignment.ids"
             multiple
@@ -235,28 +202,7 @@ async function files(event: Event) {
             ><span class="app-field-label">{{
               t("workflow.attachments")
             }}</span></template
-          ><input
-            v-if="!readonly"
-            type="file"
-            multiple
-            accept="application/pdf,image/png,image/jpeg"
-            :aria-label="t('workflow.attachments')"
-            @change="files"
-          />
-          <div v-for="file in node.message.attachments" :key="file.name">
-            {{ file.name }}
-            <a-button
-              v-if="!readonly"
-              type="text"
-              @click="
-                node.message!.attachments = node.message!.attachments!.filter(
-                  (f) => f !== file,
-                )
-              "
-              >{{ t("workflow.delete") }}</a-button
-            >
-          </div>
-          <small>{{ t("workflow.attachmentHelp") }}</small></a-form-item
+          ><AttachmentField :model-value="node.message.attachments ?? []" @update:model-value="node.message!.attachments = $event" /></a-form-item
         ></a-form
       >
     </section>

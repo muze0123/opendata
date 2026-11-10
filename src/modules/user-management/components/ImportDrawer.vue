@@ -85,6 +85,10 @@ async function handleFile(file: File) {
   fileName.value = file.name;
   parsedRows.value = [];
   fileError.value = '';
+  if (file.size > 20 * 1024 * 1024) {
+    fileError.value = t('userManagement.import.fileTooLarge');
+    return;
+  }
   if (!file.name.toLowerCase().endsWith('.xlsx')) {
     fileError.value = t('userManagement.import.invalidFile');
     return;
@@ -206,14 +210,10 @@ function close() {
         </ul>
       </div>
 
-      <!-- 注意事项子区块（亮色 var(--app-import-help-surface)，暗色随主题语义底） -->
+      <!-- 注意事项子区块：亮色浅主题色 var(--app-import-help-surface)，暗色随主题语义底 -->
       <div class="um-import-notes">
         <p class="um-import-notes-title">{{ t('userManagement.import.notesTitle') }}</p>
-        <ul class="um-import-notes-list">
-          <li>{{ t('userManagement.import.note1') }}</li>
-          <li>{{ t('userManagement.import.note2') }}</li>
-          <li>{{ t('userManagement.import.columnHint') }}</li>
-        </ul>
+        <p class="um-import-notes-body">{{ t('userManagement.import.notes') }}</p>
       </div>
 
       <button
@@ -281,11 +281,10 @@ function close() {
 }
 .um-error-list li { margin-bottom: 2px; }
 
-/* 注意事项子区块 */
+/* 注意事项子区块：浅主题色背景（亮色 var(--app-primary-light-bg)，暗色随主题语义底） */
 .um-import-notes { padding: 12px 16px; border-radius: 2px; background: var(--app-import-help-surface); }
-body[arco-theme='dark'] .um-import-notes { background: var(--color-fill-2); }
 .um-import-notes-title { margin: 0 0 6px; font-size: 13px; line-height: 20px; font-weight: 600; color: var(--color-text-1); }
-.um-import-notes-list { margin: 0; padding-left: 18px; font-size: 12px; line-height: 20px; color: var(--color-text-2); }
+.um-import-notes-body { margin: 0; font-size: 12px; line-height: 20px; color: var(--color-text-2); white-space: pre-line; }
 
 /* 模版下载命令：文字型链接按钮，准备中显示加载态，失败保留重试入口 */
 .um-import-template {
