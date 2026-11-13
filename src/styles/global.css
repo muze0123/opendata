@@ -869,3 +869,24 @@ body .account-dialog .arco-modal-footer {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* =============================================================================
+ * Tabs 全局交互（DESIGN.md · 数据展示 / Tabs [Project]）
+ * 默认 line 类型：hover 单个 tab 时仅文字颜色高亮（品牌主色），不渲染背景块；
+ * 选中态（文字主色 + 加粗 + 底部 2px 指示条）始终高于 hover 态。
+ * 用 body 前缀提升特异性，压过 Arco 懒加载注入的同名样式。
+ * 仅覆盖 :hover，保留 :focus-visible 的 2px 焦点环（可达性不受影响）。
+ * 项目当前全部 a-tabs 均为默认 line 类型，故只覆盖 type-line。
+ * ========================================================================== */
+body .arco-tabs-nav-type-line .arco-tabs-tab:hover .arco-tabs-tab-title::before {
+  background-color: transparent;
+}
+body .arco-tabs-nav-type-line .arco-tabs-tab:hover {
+  color: rgb(var(--primary-6));
+}
+/* 选中态高于 hover：文字主色 + 加粗，并配合 Arco 底部 2px 指示条区分层级 */
+body .arco-tabs-nav-type-line .arco-tabs-tab-active,
+body .arco-tabs-nav-type-line .arco-tabs-tab-active:hover {
+  color: rgb(var(--primary-6));
+  font-weight: 500;
+}

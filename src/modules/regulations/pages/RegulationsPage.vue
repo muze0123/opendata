@@ -8,6 +8,7 @@ import ExcelJS from 'exceljs';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog.vue';
 import { useTaskCenterStore } from '../../task-center/stores/taskCenter';
 import ColumnSettingsPopover, { type ColumnSettingsItem } from '../../../shared/components/ColumnSettingsPopover.vue';
+import { freezeEdgeColumns } from '../../../shared/tableColumns';
 import AppPagination from '../../../design/components/AppPagination.vue';
 import { regulationRows, initialRegulations, REGION_CODES, countries, type Regulation } from '../data/regulations';
 import { regulationLabel } from '../labels';
@@ -85,7 +86,7 @@ function onColumnSettingsChanged(next: ColumnSettingsItem[]) {
 }
 /** 只有需要自定义渲染的列声明 slotName；纯文本列交给 Arco 的 ellipsis/tooltip 处理单行截断（DESIGN.md · Table） */
 const SLOT_KEYS = new Set(['region', 'country', 'status']);
-const columns = computed<TableColumnData[]>(() => [
+const columns = computed<TableColumnData[]>(() => freezeEdgeColumns([
   ...columnSettings.value.filter(item => item.visible).map(item => ({
     title: t(`regulations.${item.key}`),
     dataIndex: item.key,
@@ -96,7 +97,7 @@ const columns = computed<TableColumnData[]>(() => [
     tooltip: true,
   })),
   { title: t('regulations.operations'), dataIndex: 'operations', slotName: 'operations', width: 280, ellipsis: false, tooltip: false },
-]);
+]));
 /** 横向滚动宽度由实际列宽汇总，避免列设置隐藏列后留下空白轨道 */
 const horizontalWidth = computed(() => columns.value.reduce((total, column) => total + Number(column.width ?? 0), 0));
 const selected = ref<Regulation>();

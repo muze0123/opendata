@@ -109,7 +109,6 @@ function updateViewport() {}
           :class="{ 'is-active': isTopItemActive(item, route.path) }"
           :aria-current="isTopItemActive(item, route.path) ? 'page' : undefined"
         >
-          <component :is="item.icon" :size="16" />
           <span>{{ t(item.labelKey) }}</span>
         </router-link>
       </nav>
@@ -257,7 +256,6 @@ function updateViewport() {}
 .product-topnav-link { display: inline-flex; align-items: center; gap: 7px; flex: none; height: 100%; padding: 3px 12px 0; border-bottom: 3px solid transparent; color: var(--color-text-2); font-size: 14px; white-space: nowrap; text-decoration: none; }
 .product-topnav-link:hover { color: rgb(var(--primary-6)); background: var(--color-fill-2); }
 .product-topnav-link.is-active { color: rgb(var(--primary-6)); border-bottom-color: rgb(var(--primary-6)); }
-.product-topnav-link :deep(svg) { flex: none; }
 
 .product-account { display: inline-flex; align-items: center; flex: none; gap: 8px; font-size: 14px; }
 .product-tools { display: inline-flex; align-items: center; flex: none; gap: 10px; }

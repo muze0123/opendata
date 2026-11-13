@@ -8,6 +8,7 @@ import ExcelJS from 'exceljs';
 import { useTaskCenterStore } from '../../task-center/stores/taskCenter';
 import AppPagination from '../../../design/components/AppPagination.vue';
 import ColumnSettingsPopover, { type ColumnSettingsItem } from '../../../shared/components/ColumnSettingsPopover.vue';
+import { freezeEdgeColumns } from '../../../shared/tableColumns';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog.vue';
 import { certificateRows, certificates, STATUS_CODES, type Certificate } from '../data/certificates';
 
@@ -73,7 +74,7 @@ const sortedRows = computed(() => {
 const pagedRows = computed(() => sortedRows.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value));
 const hasApplied = computed(() => Object.values(applied.value).some(Boolean));
 function changeSort(field: string, direction: string) { sortField.value = field as ColumnKey; sortDirection.value = direction; page.value = 1; }
-const columns = computed(() => [
+const columns = computed(() => freezeEdgeColumns([
   ...columnSettings.value.filter(item => item.visible).map(item => ({
     title: t(`certificates.${item.key}`),
     dataIndex: item.key,
@@ -82,7 +83,7 @@ const columns = computed(() => [
     sortable: { sortDirections: ['ascend', 'descend'] as ('ascend' | 'descend')[], sorter: true, sortOrder: sortField.value === item.key ? sortDirection.value as 'ascend' | 'descend' : undefined },
   })),
   { title: t('certificates.operations'), dataIndex: 'operations', slotName: 'operations', width: 190 },
-]);
+]));
 /** 横向滚动宽度由实际列宽汇总，避免固定值小于列宽总和导致末列被裁切 */
 const horizontalWidth = computed(() => columns.value.reduce((total, column) => total + Number(column.width ?? 0), 0));
 

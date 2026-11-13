@@ -83,7 +83,6 @@ watch([() => route.name, () => localeStore.locale], revealActiveNavigation);
 
       <nav ref="navRef" class="default-module-nav" :aria-label="t('shell.navigation')">
         <router-link v-for="item in navigationItems" :key="item.name" :to="item.path" :class="{ active: isNavigationActive(item.name) }">
-          <component :is="item.icon" :size="18" />
           <span>{{ t(item.labelKey) }}</span>
         </router-link>
       </nav>

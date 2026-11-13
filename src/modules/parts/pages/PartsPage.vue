@@ -11,6 +11,7 @@ import { IconLeft, IconUpload, IconDownload, IconFolder, IconFilter, IconMore, I
 import ConfirmDialog from '../../../shared/components/ConfirmDialog.vue';
 import { useTaskCenterStore } from '../../task-center/stores/taskCenter';
 import ColumnSettingsPopover, { type ColumnSettingsItem } from '../../../shared/components/ColumnSettingsPopover.vue';
+import { freezeEdgeColumns } from '../../../shared/tableColumns';
 import AppPagination from '../../../design/components/AppPagination.vue';
 import emptyDot from '../../../assets/parts-empty-dot.svg';
 import { DEVELOPMENT_CODES, LEVEL_CODES, INTERFACE_CODES, PROTOCOL_CODES, suppliers, emptyPart, type Part, type Segment, type HardwareVersion } from '../data/parts';
@@ -148,7 +149,7 @@ watch([filtered, pageSize], () => { if (page.value > totalPages.value) page.valu
 function applyFilters() { applied.value = { ...query }; page.value = 1; }
 function resetFilters() { Object.assign(query, { code: '', name: '', supplier: '' }); applyFilters(); }
 const detail = computed(() => rows.value.find(row => row.id === route.params.id) ?? readPartDetail(String(route.params.id)));
-const columns = computed(() => [
+const columns = computed(() => freezeEdgeColumns([
   ...columnSettings.value.filter(item => item.visible).map(item => ({
     title: t(`parts.${item.key}`),
     dataIndex: item.key,
@@ -156,7 +157,7 @@ const columns = computed(() => [
     width: 150,
   })),
   { title: t('parts.actions'), dataIndex: 'actions', slotName: 'actions', width: 180 },
-]);
+]));
 /** 横向滚动宽度由实际列宽汇总，避免固定值小于列宽总和导致末列被裁切。 */
 const horizontalWidth = computed(() => columns.value.reduce((total, column) => total + Number(column.width ?? 0), 0));
 const drawer = ref(false);
@@ -201,6 +202,8 @@ const segments = ref<Segment[]>([{ id: 'fixed', kind: 'fixed', value: 'DDY' }, {
 const preview = computed(() => [...segments.value.map(s => s.value), '1'.padStart(digits.value, '0')].join(separator.value));
 const digitOptions = computed(() => [4, 6, 8].map(value => ({ value, label: t('parts.digitOption', { count: value }) })));
 const generatedCode = computed(() => custom.value ? [...lockedSegments.value.map(s => s.kind === 'variable' ? variable.value.trim() : s.value), String(serial.value).padStart(lockedDigits.value, '0')].join(lockedSeparator.value) : `PART-${String(serial.value).padStart(4, '0')}`);
+/** 规则允许配置多段可变字符，但值共用同一个 variable：编号条里只让第一段可编辑，其余同步只读展示。 */
+const firstVariableIndex = computed(() => lockedSegments.value.findIndex(segment => segment.kind === 'variable'));
 function addSegment(kind: Segment['kind']) { segments.value.push({ id: crypto.randomUUID(), kind, value: kind === 'year' ? String(new Date().getFullYear()) : '' }); }
 function configure() {
   if (!segments.value.length || segments.value.some(s => !/^[A-Za-z0-9]+$/.test(s.value))) { Message.error(t('parts.invalidRule')); return false; }
@@ -368,7 +371,19 @@ function confirmDiscard() { drawer.value = false; pendingLeave.value?.(true); pe
     </template>
     <a-drawer :visible="drawer" :width="'min(500px, 100vw)'" :title="t(form.id ? 'parts.editTitle' : 'parts.create')" class="parts-form-drawer" :mask-closable="false" :esc-to-close="true" @cancel="closeDrawer" @ok="save">
       <a-form ref="formRef" :model="form" :rules="rules" layout="vertical" class="part-form" scroll-to-first-error>
-        <a-form-item v-if="custom && !form.id && lockedSegments.some(segment => segment.kind === 'variable')"><template #label><span class="app-field-label">{{ t('parts.code') }}</span></template><a-input v-model="variable" :placeholder="t('parts.variable')" :max-length="20" show-word-limit /><div class="preview">{{ generatedCode }}</div></a-form-item>
+        <a-form-item v-if="custom && !form.id && lockedSegments.some(segment => segment.kind === 'variable')">
+          <template #label><span class="part-required" aria-hidden="true">*</span><span class="app-field-label">{{ t('parts.code') }}</span></template>
+          <div class="part-code-editor" role="group" :aria-label="t('parts.code')">
+            <template v-for="(segment, index) in lockedSegments" :key="segment.id">
+              <span v-if="index > 0" class="part-code-separator" aria-hidden="true">{{ lockedSeparator }}</span>
+              <a-input v-if="segment.kind === 'variable' && index === firstVariableIndex" v-model="variable" class="part-code-segment part-code-variable" :placeholder="t('parts.variablePlaceholder')" :max-length="20" :input-attrs="{ 'aria-label': t('parts.variable'), 'aria-required': 'true' }" />
+              <span v-else-if="segment.kind === 'variable'" class="part-code-segment part-code-fixed">{{ variable.trim() || t('parts.variable') }}</span>
+              <span v-else class="part-code-segment part-code-fixed">{{ segment.value }}</span>
+            </template>
+            <span class="part-code-separator" aria-hidden="true">{{ lockedSeparator }}</span>
+            <span class="part-code-segment part-code-fixed">{{ String(serial).padStart(lockedDigits, '0') }}</span>
+          </div>
+        </a-form-item>
         <a-form-item v-for="field in fields" :key="field" :field="field"><template #label><span class="app-field-label">{{ t(`parts.${field}`) }}</span></template>
           <a-select v-if="field === 'level'" v-model="form.level" :options="LEVEL_CODES.map(value => ({ value, label: levelLabel(t, value) }))" :placeholder="t('parts.select')" />
           <a-select v-else-if="field === 'development'" v-model="form.development" :options="DEVELOPMENT_CODES.map(value => ({ value, label: developmentLabel(t, value) }))" :placeholder="t('parts.select')" />
@@ -469,7 +484,19 @@ h3 { margin: 0 0 16px; font-size: 16px; }
 .part-form :deep(.arco-input-wrapper), .part-form :deep(.arco-select-view) { width: 100%; }
 /* 固定底部操作栏：取消（中性）+ 确定（主操作），右对齐 */
 .parts-drawer-footer { display: flex; justify-content: flex-end; gap: 12px; }
-.preview { background: var(--color-fill-2); padding: 12px; overflow-wrap: anywhere; }
+/* 自定义编号 · 零部件编号（必填）：分段式编号条（2026-11-11 用户裁决，参考图）。
+   只读段是静态文本块（灰底、中性描边、次级文字），只有「可变字符」段是真正的输入框：
+   默认白底 + 中性 1px 描边（不高亮），获取焦点时才切到主题色双线高亮描边，
+   与截图的聚焦态一致；保留 12px 左右内距，避免提示语贴住边框。
+   符合 Business-drawer surface 的 editable/disabled 契约；整条横向排列且窄屏可换行不溢出。 */
+.part-required { margin-right: 4px; color: rgb(var(--danger-6)); font-size: 14px; line-height: 22px; }
+.part-code-editor { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; width: 100%; min-width: 0; }
+.part-form .part-code-editor :deep(.part-code-separator) { flex: none; color: var(--color-text-3); font-size: 14px; line-height: 32px; }
+.part-form .part-code-editor :deep(.part-code-segment) { flex: none; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; height: 32px; min-width: 56px; padding: 0 12px; border: 1px solid var(--app-control-border); border-radius: var(--app-radius-control); background: var(--app-fill-2); color: var(--color-text-3); font-size: 14px; line-height: 22px; white-space: nowrap; }
+.part-form .part-code-editor :deep(.part-code-variable) { flex: 1 1 140px; width: auto; min-width: 140px; justify-content: flex-start; padding: 0 12px; border-color: var(--app-control-border); background: var(--app-surface); box-shadow: none; }
+.part-form .part-code-editor :deep(.part-code-variable:focus-within) { border-color: var(--app-accent); box-shadow: inset 0 0 0 1px var(--app-accent); }
+.part-form .part-code-editor :deep(.part-code-variable .arco-input) { color: var(--color-text-1); font-size: 14px; }
+.part-form .part-code-editor :deep(.part-code-variable .arco-input::placeholder) { color: var(--color-text-3); }
 .version-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; }
 .hardware { background: var(--color-fill-1); padding: 12px; }
 .hardware-item { display: flex; align-items: center; border: 1px solid var(--color-border-2); margin-bottom: 12px; padding: 8px; border-radius: var(--app-radius-control); }

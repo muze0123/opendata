@@ -5,6 +5,7 @@ import { useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vu
 import { Message } from '@arco-design/web-vue';
 import { IconMore, IconPlus, IconSettings, IconSearch, IconRefresh, IconLeft, IconRight } from '@arco-design/web-vue/es/icon';
 import ColumnSettingsPopover, { type ColumnSettingsItem } from '../../../shared/components/ColumnSettingsPopover.vue';
+import { freezeEdgeColumns } from '../../../shared/tableColumns';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog.vue';
 import { roles } from '../../user-management/data/users';
 import { enabledApps, useRoleStore } from '../data/roles';
@@ -59,7 +60,7 @@ const defaultColumns = [{ key: 'name', visible: true, disabled: true }, { key: '
 const columnState = ref(defaultColumns.map(item => ({ ...item })));
 const defaultColumnItems = computed(() => defaultColumns.map(item => ({ ...item, label: t(`roleManagement.${item.key}`) })));
 const columnItems = computed(() => columnState.value.map(item => ({ ...item, label: t(`roleManagement.${item.key}`) })));
-const columns = computed(() => columnItems.value.filter(item => item.visible).map(item => ({ title: item.label, dataIndex: item.key, slotName: item.key, width: item.key === 'name' ? 240 : item.key === 'operations' ? 230 : undefined, ellipsis: true, tooltip: true })).concat([{ title: t('roleManagement.operations'), dataIndex: 'operations', slotName: 'operations', width: 230, ellipsis: false, tooltip: false }]));
+const columns = computed(() => freezeEdgeColumns(columnItems.value.filter(item => item.visible).map(item => ({ title: item.label, dataIndex: item.key, slotName: item.key, width: item.key === 'name' ? 240 : item.key === 'operations' ? 230 : undefined, ellipsis: true, tooltip: true })).concat([{ title: t('roleManagement.operations'), dataIndex: 'operations', slotName: 'operations', width: 230, ellipsis: false, tooltip: false }])));
 function updateColumns(items: ColumnSettingsItem[]) { columnState.value = items; }
 function open(mode: 'new'|'edit'|'detail', id?: string) { void router.push({ path: mode === 'new' ? `${base}/new` : `${base}/${id}/${mode}`, query: route.query }); }
 const target = ref<string>();

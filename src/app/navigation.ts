@@ -3,6 +3,9 @@ import {
   IconHome, IconSchedule, IconStorage, IconSettings, IconHistory,
   IconUser, IconBranch, IconUserGroup, IconShareAlt, IconOrderedList,
 } from '@arco-design/web-vue/es/icon';
+import IconPartsModule from '../shared/icons/IconPartsModule.vue';
+import IconCertificateDoc from '../shared/icons/IconCertificateDoc.vue';
+import IconRegulationBook from '../shared/icons/IconRegulationBook.vue';
 
 export interface NavigationChild {
   name: string;
@@ -29,7 +32,18 @@ export const topNavigationItems: NavigationItem[] = [
   { name: 'home', path: '/home', labelKey: 'nav.home', icon: IconHome },
   { name: 'tasks', path: '/tasks', labelKey: 'nav.tasks', icon: IconSchedule },
   { name: 'vehicles', path: '/vehicles', labelKey: 'vehicles.title', icon: IconStorage },
-  { name: 'data', path: '/data', labelKey: 'nav.data', icon: IconStorage, children: [{ name: 'parts', path: '/data/parts', labelKey: 'parts.title', icon: IconStorage }, { name: 'certificates', path: '/data/certificates', labelKey: 'certificates.title', icon: IconStorage }, { name: 'regulations', path: '/data/regulations', labelKey: 'regulations.title', icon: IconStorage }] },
+  {
+    name: 'data',
+    path: '/data',
+    labelKey: 'nav.data',
+    icon: IconStorage,
+    // 侧栏三枚为独立设计的线性图标，避免原先三项共用 IconStorage 无法区分。
+    children: [
+      { name: 'parts', path: '/data/parts', labelKey: 'parts.title', icon: IconPartsModule },
+      { name: 'certificates', path: '/data/certificates', labelKey: 'certificates.title', icon: IconCertificateDoc },
+      { name: 'regulations', path: '/data/regulations', labelKey: 'regulations.title', icon: IconRegulationBook },
+    ],
+  },
   {
     name: 'settings',
     path: '/settings',

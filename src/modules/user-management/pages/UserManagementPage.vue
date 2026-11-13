@@ -25,6 +25,7 @@ import ImportDrawer from '../components/ImportDrawer.vue';
 import DeleteConfirmModal from '../components/DeleteConfirmModal.vue';
 import RoleList from '../components/RoleList.vue';
 import ColumnSettingsPopover from '../../../shared/components/ColumnSettingsPopover.vue';
+import { freezeEdgeColumns } from '../../../shared/tableColumns';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog.vue';
 
 const { t } = useI18n();
@@ -457,8 +458,10 @@ const columns = computed<TableColumnData[]>(() => {
     if (columnVisible.value[key]) list.push(columnCatalog.value[key]);
   }
   list.push({ title: t('userManagement.columns.actions'), dataIndex: 'id', slotName: 'actions', width: 120, align: 'left' });
-  return list;
+  return freezeEdgeColumns(list);
 });
+/** 列宽总和作为 Arco 横向滚动基准：列设置隐藏列后同步收缩，避免多余空白。 */
+const horizontalWidth = computed(() => columns.value.reduce((total, column) => total + (Number(column.width) || 120), 0));
 
 function deptNameById(id: string) {
   return deptStore.nameOf(id);
@@ -627,6 +630,7 @@ function deptNameById(id: string) {
           :pagination="false"
           :bordered="false"
           :stripe="false"
+          :scroll="{ x: horizontalWidth }"
           class="um-table"
           @selection-change="handleSelectionChange"
         >
@@ -840,9 +844,11 @@ function deptNameById(id: string) {
 .um-batch-clear:hover { color: var(--app-accent); }
 
 /* 表格 */
-.um-table-scroll { width: 100%; overflow-x: auto; }
-.um-table { width: 100%; min-width: 980px; margin-bottom: 8px; }
-.um-table :deep(.arco-table-container) { min-width: 980px; }
+/* 横向滚动只由 Arco 的 .arco-table-content-scroll-x 承载（配合 :scroll.x）。
+   若外层容器也产生横向滚动，fixed 列的 sticky 约束只在内层生效，会随整个表格
+   一起平移，首列/操作列看起来就没有冻结。因此外层不给表格设 min-width。 */
+.um-table-scroll { width: 100%; overflow-x: visible; }
+.um-table { width: 100%; margin-bottom: 8px; }
 .um-table :deep(table) { table-layout: fixed; }
 .um-table :deep(.arco-table-th), .um-table :deep(.arco-table-td) { padding: 8px 10px; white-space: nowrap; }
 .um-table :deep(.arco-table-td) { overflow: hidden; text-overflow: ellipsis; }

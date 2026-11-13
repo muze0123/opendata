@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import ColumnSettingsPopover, { type ColumnSettingsItem } from '../../../shared/components/ColumnSettingsPopover.vue';
+import { freezeEdgeColumns } from '../../../shared/tableColumns';
 import VehicleImport from '../components/VehicleImport.vue';
 import { cachePartDetail } from '../../parts/data/detailSnapshot';
-import { emptyPart } from '../../parts/data/parts';
+import { emptyPart, partCatalogSeed } from '../../parts/data/parts';
+import AppFormLayout from '../../../design/components/AppFormLayout.vue';
 import AppDetailList from '../../../design/components/AppDetailList.vue';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog.vue';
 import { useUserStore } from '../../user-management/stores/users';
@@ -54,8 +56,31 @@ const editor = computed(() => route.name === 'vehicle-directory-new' || route.na
 const editorSnapshot = ref('');
 const partQuery = ref('');
 const partApplied = ref('');
-const partCatalog = computed(() => partsStore.rows.map(part => ({ code: part.code, name: part.name, supplier: part.supplier, id: part.id })));
-const availableParts = computed(() => partCatalog.value.filter(part => `${part.code} ${part.name}`.toLowerCase().includes(partApplied.value.toLowerCase())));
+const partCatalog = computed(() => {
+  const source = partsStore.rows.length ? partsStore.rows : partCatalogSeed;
+  return source.map(part => ({ code: part.code, name: part.name, supplier: part.supplier, abbreviation: (part as { abbreviation?: string }).abbreviation ?? '', id: part.id ?? part.code, display: `${part.name}${(part as { abbreviation?: string }).abbreviation ? ` ${(part as { abbreviation?: string }).abbreviation}` : ''}` }));
+});
+const availableParts = computed(() => partCatalog.value.filter(part => `${part.code} ${part.display}`.toLowerCase().includes(partApplied.value.toLowerCase())));
+const editorPartColumns = computed<TableColumnData[]>(() => [
+  { title: t('vehicles.partCode'), dataIndex: 'code' },
+  { title: t('vehicles.partName'), dataIndex: 'display' },
+  { title: t('vehicles.supplier'), dataIndex: 'supplier' },
+]);
+const editorBreadcrumb = computed(() => {
+  if (directoryTarget.value) {
+    const path = directoryPath(tree.value, directoryTarget.value.key);
+    return path.map((node, index) => ({ title: node.title, current: index === path.length - 1 }));
+  }
+  const parentPath = directoryParent.value ? directoryPath(tree.value, directoryParent.value.key) : [];
+  return [...parentPath.map(node => ({ title: node.title, current: false })), { title: t('vehicles.newLeaf'), current: true }];
+});
+/** 被引用中的在途（未开始/进行中）整车级项目业务占用的零部件：编辑态下不可移除（交互说明 3.2） */
+const occupiedParts = computed(() => new Set(projects.value.filter(project => project.status !== 'completed' && project.directories.includes(directoryTarget.value?.key ?? '')).flatMap(project => project.usedParts)));
+function removePart(code: string) {
+  if (editorLocked.value) return;
+  if (occupiedParts.value.has(code)) { Message.warning(t('vehicles.partInUse')); return; }
+  directoryParts.value = directoryParts.value.filter(value => value !== code);
+}
 const editorLocked = computed(() => projects.value.some(project => project.type === 'vehicle' && project.status === 'completed' && project.directories.includes(directoryTarget.value?.key ?? '')));
 const editorDirty = computed(() => editor.value && editorSnapshot.value !== JSON.stringify([directoryName.value, directoryRegex.value, directoryParts.value]));
 const discardVisible = ref(false);
@@ -240,7 +265,7 @@ function handleSort(dataIndex: unknown, direction: unknown) {
   sortDirection.value = direction;
   setPage(1);
 }
-const columns = computed<TableColumnData[]>(() => columnKeys.value.map<TableColumnData>(key => ({ title: t(`vehicles.${key}`), dataIndex: key, ...(key === 'code' ? { slotName: 'code' } : {}), ...(key === 'created' ? { sortable: { sortDirections: ['ascend', 'descend'] as ('ascend' | 'descend')[], defaultSortOrder: 'descend' as const } } : { sortable: { sortDirections: ['ascend', 'descend'] as ('ascend' | 'descend')[] } }) })).concat([{ title: t('vehicles.operations'), dataIndex: 'operations', slotName: 'operations', width: 160 }]));
+const columns = computed<TableColumnData[]>(() => freezeEdgeColumns(columnKeys.value.map<TableColumnData>(key => ({ title: t(`vehicles.${key}`), dataIndex: key, ...(key === 'code' ? { slotName: 'code' } : {}), ...(key === 'created' ? { sortable: { sortDirections: ['ascend', 'descend'] as ('ascend' | 'descend')[], defaultSortOrder: 'descend' as const } } : { sortable: { sortDirections: ['ascend', 'descend'] as ('ascend' | 'descend')[] } }) })).concat([{ title: t('vehicles.operations'), dataIndex: 'operations', slotName: 'operations', width: 160 }])));
 function open() { Object.assign(form, { code: '', effective: '', region: '', owner: '', description: '' }); error.value = ''; modal.value = true; }
 function save() {
   if (!selectedLeaf.value) return false;
@@ -279,13 +304,7 @@ watch(() => route.fullPath, () => {
 function filterNode(node: TreeNodeData) { return String(node.title ?? '').toLowerCase().includes(directorySearch.value.toLowerCase()); }
 </script>
 <template>
-  <main v-if="editor" class="directory-editor">
-    <div class="editor-bar"><span>{{ directoryParent?.title }} / {{ t(directoryTarget ? 'vehicles.editDirectory' : 'vehicles.newLeaf') }}</span><a-space><a-button @click="router.push('/vehicles')">{{ t('vehicles.cancel') }}</a-button><a-button type="primary" :disabled="editorLocked" @click="saveDirectory">{{ t('vehicles.save') }}</a-button></a-space></div>
-    <section class="detail-block"><h3>{{ t('vehicles.basicInfo') }}</h3><a-alert v-if="editorLocked">{{ t('vehicles.projectLocked') }}</a-alert><a-alert v-if="directoryError" type="error">{{ t(`vehicles.${directoryError}`) }}</a-alert><a-form :model="{}" layout="vertical"><a-form-item :label="t('vehicles.directoryName')" required><a-input v-model="directoryName" :disabled="editorLocked" :max-length="64" show-word-limit /></a-form-item><a-form-item :label="t('vehicles.vinRegex')"><a-input v-model="directoryRegex" :disabled="editorLocked" /></a-form-item></a-form></section>
-    <section class="detail-block"><h3>{{ t('vehicles.parts') }}</h3><a-space><a-input v-model="partQuery" :aria-label="t('vehicles.partSearch')" /><a-button @click="partApplied = partQuery">{{ t('vehicles.search') }}</a-button><a-button @click="partQuery = ''; partApplied = ''">{{ t('vehicles.reset') }}</a-button></a-space><a-table row-key="code" v-model:selected-keys="directoryParts" :row-selection="{ type: 'checkbox', onlyCurrent: false }" :data="availableParts.map(part => ({ ...part, disabled: editorLocked }))" :columns="partColumns.slice(0, 3)" :pagination="{ pageSize: 10 }" /><p>{{ t('vehicles.selectedParts', { count: directoryParts.length }) }}</p><a-space wrap><a-tag v-for="code in directoryParts" :key="code" :closable="!editorLocked" @close="directoryParts = directoryParts.filter(value => value !== code)">{{ partCatalog.find(part => part.code === code)?.name || code }}</a-tag></a-space></section>
-    <ConfirmDialog :visible="discardVisible" :title="t('vehicles.discard')" @update:visible="resolveLeave(false)" @confirm="resolveLeave(true)" />
-  </main>
-  <main v-else class="vehicles-workspace">
+  <main class="vehicles-workspace">
     <aside class="directory-panel">
       <div class="directory-toolbar">
         <h2>{{ t('vehicles.directory') }}</h2>
@@ -293,9 +312,66 @@ function filterNode(node: TreeNodeData) { return String(node.title ?? '').toLowe
         <a-tooltip :content="t('vehicles.levelsTitle')"><a-button class="directory-tool" :aria-label="t('vehicles.levelsTitle')" @click="openLevels"><template #icon><IconSettings :size="16" /></template></a-button></a-tooltip>
       </div>
       <a-input-search v-model="directorySearch" :placeholder="t('vehicles.searchDirectory')" :aria-label="t('vehicles.searchDirectory')" allow-clear />
-      <a-tree block-node v-model:selected-keys="selected" :data="tree" :default-expanded-keys="['brand', 'series', 'model']"  :filter-tree-node="filterNode"><template #extra="node"><a-tooltip v-if="canAddChild(node)" :content="t('vehicles.addChild')"><button type="button" class="directory-more" :aria-label="t('vehicles.addChild')" @click.stop="editDirectory(undefined, node)"><IconPlus :size="16" /></button></a-tooltip><a-dropdown :trigger="['hover', 'click']" position="br" popup-container="body" content-class="row-more-dropdown" arrow-class="row-more-arrow" show-arrow><button type="button" class="directory-more" :aria-label="t('vehicles.directoryActions')" @click.stop><IconMore :size="16" /></button><template #content><a-doption @click="editDirectory(node)">{{ t('vehicles.edit') }}</a-doption><a-doption v-if="!canAddChild(node)" @click="editDirectory(node, undefined, true)">{{ t('vehicles.directoryDetail') }}</a-doption><a-doption class="row-more-danger" @click="requestDelete(node)">{{ t('vehicles.delete') }}</a-doption></template></a-dropdown></template></a-tree>
+      <a-tree block-node v-model:selected-keys="selected" :data="tree" :default-expanded-keys="['brand', 'series', 'model']"  :filter-tree-node="filterNode"><template #extra="node"><a-tooltip v-if="canAddChild(node)" :content="t('vehicles.addChild')"><button type="button" class="directory-more" :aria-label="t('vehicles.addChild')" @click.stop="editDirectory(undefined, node)"><IconPlus :size="16" /></button></a-tooltip><a-dropdown :trigger="['hover', 'click']" position="br" popup-container="body" content-class="row-more-dropdown" arrow-class="row-more-arrow" show-arrow><button type="button" class="directory-more" :aria-label="t('vehicles.directoryActions')" @click.stop><IconMore :size="16" /></button><template #content><a-doption v-if="!canAddChild(node)" @click="editDirectory(node, undefined, true)">{{ t('vehicles.directoryDetail') }}</a-doption><a-doption @click="editDirectory(node)">{{ t('vehicles.edit') }}</a-doption><a-doption class="row-more-danger" @click="requestDelete(node)">{{ t('vehicles.delete') }}</a-doption></template></a-dropdown></template></a-tree>
     </aside>
-    <section class="vehicle-content">
+  <section v-if="editor" class="directory-editor">
+    <header class="editor-header">
+      <nav class="editor-breadcrumb" :aria-label="t('vehicles.directory')">
+        <template v-for="(segment, index) in editorBreadcrumb" :key="index">
+          <a-link v-if="!segment.current" class="crumb-link" @click="router.push('/vehicles')">{{ segment.title }}</a-link>
+          <span v-else class="crumb-current">{{ segment.title }}</span>
+          <span v-if="index < editorBreadcrumb.length - 1" class="crumb-sep">/</span>
+        </template>
+      </nav>
+    </header>
+    <!-- 基本信息：DESIGN.md · Form field layout（标签在上、控件 500px、必填星号在左、全局冒号） -->
+    <section class="editor-block">
+      <h2 class="block-title">{{ t('vehicles.basicInfo') }}</h2>
+      <a-alert v-if="directoryError" type="error">{{ t(`vehicles.${directoryError}`) }}</a-alert>
+      <AppFormLayout>
+      <a-form :model="{ directoryName, directoryRegex }" layout="vertical" class="editor-form">
+        <a-form-item required>
+          <template #label><span class="app-field-label">{{ t('vehicles.directoryName') }}</span></template>
+          <a-input v-model="directoryName" :disabled="editorLocked" :max-length="64" :placeholder="t('vehicles.directoryNamePlaceholder')" />
+        </a-form-item>
+        <a-form-item>
+          <template #label><span class="app-field-label">{{ t('vehicles.vinRegex') }}</span></template>
+          <a-input v-model="directoryRegex" :disabled="editorLocked" :placeholder="t('vehicles.vinRegexPlaceholder')" />
+          <template #help><span class="field-help">{{ t('vehicles.vinRegexHelp') }}</span></template>
+        </a-form-item>
+      </a-form>
+      </AppFormLayout>
+    </section>
+    <!-- 零部件：已选卡片 + 筛选 + 列表（数据来源于基础数据库零部件库） -->
+    <section class="editor-block">
+      <h2 class="block-title">{{ t('vehicles.partsTitle') }}</h2>
+      <a-alert v-if="editorLocked" class="block-lock-alert">{{ t('vehicles.projectLocked') }}</a-alert>
+      <div class="selected-parts-card">
+        <p class="selected-parts-title">{{ t('vehicles.selectedParts', { count: directoryParts.length }) }}</p>
+        <a-space wrap class="selected-parts-tags">
+          <a-tag v-for="code in directoryParts" :key="code" color="arcoblue" :closable="!editorLocked && !occupiedParts.has(code)" @close="removePart(code)">{{ partCatalog.find(part => part.code === code)?.display || code }}</a-tag>
+        </a-space>
+      </div>
+      <form class="parts-filter" @submit.prevent="partApplied = partQuery">
+        <div class="vehicle-filter-unit">
+          <label class="app-field-label" for="part-query-filter">{{ t('vehicles.partSearch') }}</label>
+          <a-input id="part-query-filter" v-model="partQuery" class="app-filter-control" :placeholder="t('parts.input')" allow-clear @press-enter="partApplied = partQuery" @clear="partApplied = ''" />
+        </div>
+        <a-button type="primary" html-type="submit"><template #icon><IconSearch :size="16" /></template>{{ t('vehicles.search') }}</a-button>
+        <a-button class="app-btn-neutral" html-type="button" @click="partQuery = ''; partApplied = ''"><template #icon><IconRefresh :size="16" /></template>{{ t('vehicles.reset') }}</a-button>
+      </form>
+      <h3 class="parts-list-title">{{ t('vehicles.partListTitle') }}</h3>
+      <a-table class="editor-part-table" row-key="code" v-model:selected-keys="directoryParts" :row-selection="{ type: 'checkbox', onlyCurrent: false }" :data="availableParts.map(part => ({ ...part, disabled: editorLocked }))" :columns="editorPartColumns" :pagination="{ pageSize: 10 }" />
+    </section>
+    <footer class="editor-footer">
+      <a-space>
+        <a-button @click="router.push('/vehicles')">{{ t('vehicles.cancel') }}</a-button>
+        <a-button type="primary" :disabled="editorLocked" @click="saveDirectory">{{ t(directoryTarget ? 'vehicles.save' : 'vehicles.confirm') }}</a-button>
+      </a-space>
+    </footer>
+    <ConfirmDialog :visible="discardVisible" :title="t('vehicles.discard')" @update:visible="resolveLeave(false)" @confirm="resolveLeave(true)" />
+  </section>
+    <section v-else class="vehicle-content">
       <a-empty v-if="!selectedLeaf" :description="t('vehicles.selectLeaf')" />
       <template v-else>
       <div class="directory-breadcrumb">
@@ -379,9 +455,37 @@ function filterNode(node: TreeNodeData) { return String(node.title ?? '').toLowe
 <style scoped>
 /* 与用户管理内容区域一致：左右两栏贴合成一块白色业务面板，中间仅 1px 竖线分隔，
    不留画布灰缝、不加圆角；栏内边距也按用户管理的左右卡片取值。 */
-.directory-editor { display: grid; gap: 12px; }
-.editor-bar { display: flex; justify-content: space-between; gap: 16px; background: var(--app-surface); padding: 16px; position: sticky; top: 56px; z-index: 2; }
-.directory-editor :deep(.arco-input-wrapper) { max-width: 500px; }
+/* Directory editor shares the approved form geometry; business state stays in this module. */
+.directory-editor { display: flex; flex-direction: column; gap: var(--mt-ds-space-3); padding: var(--mt-ds-space-4); min-width: 0; min-height: calc(100dvh - 104px); background: var(--app-surface); border-radius: var(--mt-ds-control-radius); }
+.editor-header { padding-bottom: var(--mt-ds-space-3); border-bottom: 1px solid var(--color-border-2); }
+.editor-breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: var(--mt-ds-space-2); font-size: var(--mt-ds-font-body); line-height: var(--mt-ds-line-body); overflow-wrap: anywhere; }
+.editor-breadcrumb .crumb-link { color: var(--color-text-3); font-weight: 400; }
+.editor-breadcrumb .crumb-link:hover { color: var(--app-accent); }
+.editor-breadcrumb .crumb-current { color: var(--color-text-1); font-weight: 400; }
+.editor-breadcrumb .crumb-sep { color: var(--color-text-3); }
+.editor-block { min-width: 0; padding: var(--mt-ds-space-3) 0; }
+.block-title { margin: 0 0 var(--mt-ds-space-4); font-size: var(--mt-ds-font-title); line-height: var(--mt-ds-line-title); font-weight: var(--mt-ds-weight-title); color: var(--color-text-1); }
+.block-lock-alert { margin-bottom: var(--mt-ds-space-3); }
+.editor-form :deep(.arco-form-item:last-child) { margin-bottom: 0; }
+.field-help { display: block; font-size: var(--mt-ds-font-caption); font-weight: 400; line-height: var(--mt-ds-line-caption); color: var(--color-text-3); }
+.selected-parts-card { background: var(--app-fill-1); border-radius: var(--mt-ds-control-radius); padding: var(--mt-ds-space-3) var(--mt-ds-space-4); margin-bottom: var(--mt-ds-space-4); }
+.selected-parts-title { margin: 0; font-size: var(--mt-ds-font-body); line-height: var(--mt-ds-line-body); font-weight: 400; color: var(--color-text-2); }
+.selected-parts-tags { display: block; }
+.selected-parts-tags:not(:empty) { margin-top: var(--mt-ds-space-2); }
+.selected-parts-tags :deep(.arco-tag) { max-width: 100%; height: auto; min-height: 24px; white-space: normal; overflow-wrap: anywhere; }
+.parts-filter { display: flex; align-items: flex-end; flex-wrap: wrap; gap: var(--mt-ds-space-3); margin-bottom: var(--mt-ds-space-4); }
+.parts-filter .vehicle-filter-unit { display: flex; flex-direction: column; gap: var(--mt-ds-space-2); min-width: 0; max-width: 100%; }
+.parts-filter .app-field-label { font-size: var(--mt-ds-font-body); font-weight: 400; line-height: var(--mt-ds-line-body); color: var(--color-text-2); }
+.parts-filter .app-filter-control { width: var(--mt-ds-filter-width); max-width: 100%; }
+.parts-list-title { margin: 0 0 var(--mt-ds-space-3); font-size: var(--mt-ds-font-body); line-height: var(--mt-ds-line-body); font-weight: 400; color: var(--color-text-2); }
+.editor-part-table { min-width: 0; }
+.editor-part-table :deep(.arco-table-container) { overflow-x: auto; }
+.editor-footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; margin: auto calc(-1 * var(--mt-ds-space-4)) calc(-1 * var(--mt-ds-space-4)); padding: var(--mt-ds-space-3) 96px var(--mt-ds-space-3) var(--mt-ds-space-4); background: var(--app-surface); border-top: 1px solid var(--color-border-2); z-index: 2; }
+@media (max-width: 767px) {
+  .parts-filter .vehicle-filter-unit { flex-basis: 100%; }
+  .parts-filter .app-filter-control { width: 100%; }
+  .editor-part-table :deep(.arco-table-element) { min-width: 560px; }
+}
 .vehicles-workspace { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 0; align-items: stretch; background: var(--app-surface); min-height: calc(100vh - 104px); }
 .directory-panel, .vehicle-content { background: var(--app-surface); min-width: 0; border-radius: 0; }
 .directory-panel { padding: 16px; border-right: 1px solid var(--color-border-2); }

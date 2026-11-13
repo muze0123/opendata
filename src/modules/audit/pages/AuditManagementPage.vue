@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { Message, type TableColumnData } from '@arco-design/web-vue';
 import { IconDownload, IconFilter, IconLeft, IconRefresh, IconRight, IconSearch, IconSettings } from '@arco-design/web-vue/es/icon';
 import ColumnSettingsPopover, { type ColumnSettingsItem } from '../../../shared/components/ColumnSettingsPopover.vue';
+import { freezeEdgeColumns } from '../../../shared/tableColumns';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog.vue';
 import { useTaskCenterStore } from '../../task-center/stores/taskCenter';
 import { auditActors, auditRecords, type AuditRecord } from '../data/audit';
@@ -91,7 +92,7 @@ const tableColumns = computed<TableColumnData[]>(() => {
     width: COLUMN_WIDTHS[setting.key],
     ...(setting.key === 'time' ? { sortable: { sortDirections: ['ascend', 'descend'], defaultSortOrder: 'descend' } } : {}),
   }));
-  return [...dataColumns, { title: t('audit.columns.actions'), dataIndex: 'actions', slotName: 'actions', width: 80, fixed: 'right' }];
+  return freezeEdgeColumns([...dataColumns, { title: t('audit.columns.actions'), dataIndex: 'actions', slotName: 'actions', width: 80 }]);
 });
 
 const horizontalWidth = computed(() => tableColumns.value.reduce(

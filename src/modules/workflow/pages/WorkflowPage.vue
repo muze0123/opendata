@@ -28,6 +28,7 @@ import AttachmentField from "../components/AttachmentField.vue";
 import NodeConfig from "../components/NodeConfig.vue";
 import ConditionEditor from "../components/ConditionEditor.vue";
 import ColumnSettingsPopover from "../../../shared/components/ColumnSettingsPopover.vue";
+import { freezeEdgeColumns } from "../../../shared/tableColumns";
 import { api, WorkflowError } from "../api";
 import {
   newNode,
@@ -86,7 +87,7 @@ const columnState = ref<
 const columnItems = computed(() =>
   columnState.value.map((c) => ({ ...c, label: t(`workflow.${c.key}`) })),
 );
-const columns = computed(() => [
+const columns = computed(() => freezeEdgeColumns([
   ...columnItems.value
     .filter((c) => c.visible)
     .map((c) => ({
@@ -109,9 +110,8 @@ const columns = computed(() => [
     dataIndex: "operations",
     slotName: "operations",
     width: 200,
-    fixed: "right" as const,
   },
-]);
+]));
 const filterSettings = ref(false);
 const filterState = ref(
   ["name", "type", "status"].map((key) => ({ key, visible: true })),
@@ -422,11 +422,12 @@ const templatePage = ref(1), templatePageSize = ref(10);
 const filteredTemplates = computed(() => data.value.templates.filter(item =>
   item.name.toLocaleLowerCase().includes(appliedTemplateFilters.name.trim().toLocaleLowerCase()) &&
   (!appliedTemplateFilters.channel || item.channel === appliedTemplateFilters.channel)));
-const templateColumns = computed(() => [
+// 同一页面内的模板管理列表同样冻结首列与操作列，保持全页数据列表一致。
+const templateColumns = computed(() => freezeEdgeColumns([
   { title: t('workflow.templateName'), dataIndex: 'name', width: 260 },
   { title: t('workflow.channel'), dataIndex: 'channel', slotName: 'channel', width: 180 },
-  { title: t('workflow.operations'), slotName: 'templateOperations', width: 160, fixed: 'right' as const },
-]);
+  { title: t('workflow.operations'), slotName: 'templateOperations', width: 160 },
+]));
 const templateRows = computed(() => filteredTemplates.value.slice((templatePage.value - 1) * templatePageSize.value, templatePage.value * templatePageSize.value));
 function searchTemplates(reset = false) {
   if (reset) Object.assign(templateFilters, { name: '', channel: '' });
