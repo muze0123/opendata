@@ -436,6 +436,14 @@ Pattern 2 — top-side-content (Figure 2)
 - Gutter geometry belongs to the shell and the panel is white: a page root must not re-add its own 16px margin or paint itself `Fill-1`; on this shell a `Fill-1`-filled or margin-carrying page root is a leftover of the retired white-frame architecture, not a variant.
 - Verification anchor: the computed `background-color` of `body` and `.product-shell` resolves to `#F7F8FA` in light mode; the page root (`.surveys-page`, `.ledger-page`), the header, and the sidebar resolve to `#FFFFFF`. In dark mode `--app-page` resolves to Arco `--color-bg-1` (`rgb(23, 23, 26)`), which differs from the `--mt-d-bg-1 #17181C` table value above — reconcile that mapping at the next dark-token audit.
 
+### Single content block height [Project, 2026-11-13 user decision]
+
+当业务页面的内容区域只有一个独立区块（div / section 等业务面板）时，**该区块高度应填满内容区域的可用高度，区块底边距页面可视区域底部保持 16px**。内容较少时也应延伸面板背景，不得按表单或文字的自然高度收缩而留下大块画布空白。此规则同时适用于顶部-内容区布局和顶部-侧边-内容区布局，包括第三方通知等单面板设置页。
+
+- 16px 底部留白由 shell 的内容区域外边距统一提供，页面区块不再叠加底部 margin；区块内部 padding 与该外部间距分别计算。
+- 高度随可用视口和 shell 布局自适应；优先通过父级布局和 flex / grid 拉伸实现，不为每个页面硬编码固定像素高度。内容超过可用高度时按现有内容区域滚动策略展示，保留全部字段和操作，不裁切内容。
+- 验收短内容、空状态、不同视口高度和明暗主题：无纵向溢出时，唯一业务区块的底边到视口底边应为 16px。多个并列或上下排列业务区块继续遵循各自布局及 12px 区块间距规则。
+
 **Sidebar footprint [Project, 2026-10-23].** Two geometric rules that every Pattern 2 sidebar must satisfy, in both the expanded and the collapsed state:
 
 - **The bottom edge is flush with the page bottom.** The sidebar ends exactly at the viewport bottom — no page-wrapper `padding-bottom`, no strip of page canvas under it, no rounding at the bottom corners. The 16px breathing room at the bottom of a screen belongs to the content region (its own bottom margin), never to the wrapper that holds the sidebar; otherwise the sidebar is pushed up and the two bottom edges stop matching.

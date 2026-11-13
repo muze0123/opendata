@@ -43,16 +43,16 @@ const localeStore = useLocaleStore();
 
 /* ------------------------------------------------------------------ 页签 */
 
-const TAB_KEYS: TaskTab[] = ['all', 'pending', 'created', 'participated', 'copied', 'completed'];
+const TAB_KEYS: TaskTab[] = ['all', 'pending', 'processed', 'created', 'copied'];
 const activeTab = ref<TaskTab>('all');
 
 function matchesTab(task: TaskRecord, tab: TaskTab = activeTab.value) {
   if (tab === 'all') return true;
-  if (tab === 'pending') return task.status === 'pending';
+  if (tab === 'pending') return ['pending', 'in-progress'].includes(task.status) && task.assignees.includes(currentTaskUser);
+  if (tab === 'processed') return task.records.some(record => record.operator === currentTaskUser && ['execute', 'approve', 'reject', 'return', 'finish', 'transfer'].includes(record.action));
   if (tab === 'created') return task.creator === currentTaskUser;
-  if (tab === 'participated') return task.assignees.includes(currentTaskUser);
   if (tab === 'copied') return task.copiedUsers.includes(currentTaskUser);
-  return task.status === 'completed';
+  return false;
 }
 
 /** 页签计数取自实际数据，避免出现与列表对不上的固定数字 */
@@ -390,7 +390,7 @@ function onEditOrchestration() { router.push({ name: 'task-orchestration' }); }
     <section class="tasks-panel tasks-filter-panel">
       <div class="tasks-query-region">
       <a-tabs :active-key="activeTab" @change="handleTabChange">
-        <a-tab-pane v-for="tab in tabs" :key="tab.key" :title="`${tab.label} (${tab.count})`" />
+        <a-tab-pane v-for="tab in tabs" :key="tab.key" :title="`${tab.label}(${tab.count})`" />
       </a-tabs>
 
       <div class="tasks-query">

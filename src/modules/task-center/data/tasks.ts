@@ -3,7 +3,7 @@ import { TASK_ORCHESTRATIONS } from './orchestrations';
 
 export type TaskStatus = 'pending' | 'in-progress' | 'completed' | 'rejected' | 'recalled' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
-export type TaskTab = 'all' | 'pending' | 'created' | 'participated' | 'copied' | 'completed';
+export type TaskTab = 'all' | 'pending' | 'processed' | 'created' | 'copied';
 
 /**
  * 来源/目标应用：数据层只存 code，展示文案由 tasks.appLabels.<code> 提供。

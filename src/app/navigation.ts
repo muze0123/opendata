@@ -1,7 +1,7 @@
 import type { Component } from 'vue';
 import {
   IconHome, IconSchedule, IconStorage, IconSettings, IconHistory,
-  IconUser, IconBranch, IconUserGroup, IconShareAlt, IconOrderedList,
+  IconEmail, IconUser, IconBranch, IconUserGroup, IconShareAlt, IconOrderedList,
 } from '@arco-design/web-vue/es/icon';
 import IconPartsModule from '../shared/icons/IconPartsModule.vue';
 import IconCertificateDoc from '../shared/icons/IconCertificateDoc.vue';
@@ -54,10 +54,11 @@ export const topNavigationItems: NavigationItem[] = [
       { name: 'departments', path: '/settings/departments', labelKey: 'nav.settings.departments', icon: IconBranch },
       { name: 'roles', path: '/settings/roles', labelKey: 'nav.settings.roles', icon: IconUserGroup },
       { name: 'workflow', path: '/settings/workflow', labelKey: 'nav.settings.workflow', icon: IconShareAlt },
-      { name: 'numbering', path: '/settings/numbering', labelKey: 'nav.settings.numbering', icon: IconOrderedList },
-      { name: 'version-history', path: '/settings/version-history', labelKey: 'versionHistory.title', icon: IconHistory },
       { name: 'message-settings', path: '/settings/messages', labelKey: 'messageSettings.title', icon: IconSettings },
+      { name: 'third-party-notifications', path: '/settings/third-party-notifications', labelKey: 'thirdParty.title', icon: IconEmail },
+      { name: 'numbering', path: '/settings/numbering', labelKey: 'nav.settings.numbering', icon: IconOrderedList },
       { name: 'audit', path: '/settings/audit', labelKey: 'nav.settings.audit', icon: IconHistory },
+      { name: 'version-history', path: '/settings/version-history', labelKey: 'versionHistory.title', icon: IconHistory },
       { name: 'account', path: '/settings/account', labelKey: 'account.title', icon: IconUser },
     ],
   },

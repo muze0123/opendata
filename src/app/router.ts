@@ -7,6 +7,7 @@ const pendingRoutes = topNavigationItems
   .filter(child => child.path !== '/data/parts' && child.path !== '/data/regulations' && child.path !== '/data/certificates')
   .filter(child => child.path !== '/settings/account')
   .filter(child => child.path !== '/settings/messages')
+  .filter(child => child.path !== '/settings/third-party-notifications')
   .filter(child => child.path !== '/settings/version-history')
   .filter(child => child.path !== '/settings/workflow')
   .filter(child => child.path !== '/settings/numbering')
@@ -127,6 +128,7 @@ const router = createRouter({
     { path: '/data/parts/:id/relations/projects/:projectId', name: 'part-related-project', component: () => import('../modules/parts/pages/PartRelationsPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/data/parts/:id', name: 'part-detail', component: () => import('../modules/parts/pages/PartsPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/settings/version-history', name: 'version-history', component: () => import('../modules/version-history/pages/VersionHistoryPage.vue'), meta: { layout: 'product', requiresAuth: true } },
+    { path: '/settings/third-party-notifications', name: 'third-party-notifications', component: () => import('../modules/third-party-notifications/pages/ThirdPartyNotificationsPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/settings/messages', name: 'message-settings', component: () => import('../modules/message-settings/pages/MessageSettingsPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/settings/account', name: 'settings-account', component: () => import('../modules/account/pages/AccountPage.vue'), meta: { layout: 'product', requiresAuth: true } },
     { path: '/data/regulations/:id', name: 'regulation-detail', component: () => import('../modules/regulations/pages/RegulationDetailPage.vue'), meta: { layout: 'product', requiresAuth: true } },

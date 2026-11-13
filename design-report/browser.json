@@ -1,133 +1,22 @@
 {
   "project": "OpenData",
-  "status": "passed",
+  "status": "failed",
   "assertions": [
     "1440 locale zh-CN",
     "1440 zh-CN title geometry false",
     "1440 zh-CN viewport overflow false",
-    "1440 zh-CN theme mapping false",
-    "1440 zh-CN title geometry true",
-    "1440 zh-CN viewport overflow true",
-    "1440 zh-CN theme mapping true",
-    "1440 locale en-US",
-    "1440 en-US title geometry false",
-    "1440 en-US viewport overflow false",
-    "1440 en-US theme mapping false",
-    "1440 en-US title geometry true",
-    "1440 en-US viewport overflow true",
-    "1440 en-US theme mapping true",
-    "900 locale zh-CN",
-    "900 zh-CN title geometry false",
-    "900 zh-CN viewport overflow false",
-    "900 zh-CN theme mapping false",
-    "900 zh-CN title geometry true",
-    "900 zh-CN viewport overflow true",
-    "900 zh-CN theme mapping true",
-    "900 locale en-US",
-    "900 en-US title geometry false",
-    "900 en-US viewport overflow false",
-    "900 en-US theme mapping false",
-    "900 en-US title geometry true",
-    "900 en-US viewport overflow true",
-    "900 en-US theme mapping true",
-    "375 locale zh-CN",
-    "375 zh-CN title geometry false",
-    "375 zh-CN viewport overflow false",
-    "375 zh-CN theme mapping false",
-    "375 zh-CN title geometry true",
-    "375 zh-CN viewport overflow true",
-    "375 zh-CN theme mapping true",
-    "375 locale en-US",
-    "375 en-US title geometry false",
-    "375 en-US viewport overflow false",
-    "375 en-US theme mapping false",
-    "375 en-US title geometry true",
-    "375 en-US viewport overflow true",
-    "375 en-US theme mapping true",
-    "English saved locale on refresh",
-    "Search no-match state",
-    "Filter reset",
-    "Second page records",
-    "Explicit empty state",
-    "Loading state indicator",
-    "Error state",
-    "Error recovery",
-    "Form control column is 500px",
-    "Required validation preserves drawer",
-    "Confirmation 560px x fixed 250px (560 x 250)",
-    "Confirmation close control pinned top-right (right 20px, top 8px)",
-    "Confirmation without subtitle: state icon centred on the title line (delta 0.0px, 0 subtitle lines)",
-    "Confirmation without subtitle: state icon is 20px from --mt-ds-confirm-icon (20.0px)",
-    "Confirmation without subtitle: icon-to-text gap is 24px (24.0px)",
-    "Confirmation without subtitle: subtitle stays aligned under the title",
-    "Cancel discard retains dirty input",
-    "English editable label punctuation",
-    "Local save feedback",
-    "Untouched drawer closes without discard prompt",
-    "Confirmed discard retains saved value",
-    "Chinese editable label punctuation",
-    "Saved locale on refresh",
-    "Real audit route shared toolbar and table",
-    "Real audit filter no-match state",
-    "Confirmation with subtitle lines: state icon centred on the title line (delta 0.0px, 2 subtitle lines)",
-    "Confirmation with subtitle lines: state icon is 20px from --mt-ds-confirm-icon (20.0px)",
-    "Confirmation with subtitle lines: icon-to-text gap is 24px (24.0px)",
-    "Confirmation with subtitle lines: subtitle stays aligned under the title",
-    "Real audit export cancellation",
-    "Browser back to pattern route",
-    "Browser forward to audit route",
-    "Console and runtime errors (0)"
+    "1440 zh-CN theme mapping false"
   ],
-  "screenshots": [],
+  "screenshots": [
+    "/Users/zhangbin/Desktop/麦唐/开放数据平台/OpenData/design-report/screenshots/1440-zh-CN-light.png"
+  ],
   "consoleErrors": [],
   "baselineComparisons": [
     {
       "name": "1440-zh-CN-light",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "1440-zh-CN-dark",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "1440-en-US-light",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "1440-en-US-dark",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "900-zh-CN-light",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "900-zh-CN-dark",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "900-en-US-light",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "900-en-US-dark",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "375-zh-CN-light",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "375-zh-CN-dark",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "375-en-US-light",
-      "status": "skipped-no-screenshots"
-    },
-    {
-      "name": "375-en-US-dark",
-      "status": "skipped-no-screenshots"
+      "status": "different"
     }
-  ]
+  ],
+  "accessibility": "- banner:\n  - link \"OpenData\":\n    - /url: /home\n    - strong: OpenData\n  - navigation \"t('shell.navigation')\":\n    - link \"首页概览\":\n      - /url: /home\n    - link \"任务中心\":\n      - /url: /tasks\n    - link \"车型车辆\":\n      - /url: /vehicles\n    - link \"基础数据库\":\n      - /url: /data\n    - link \"系统设置\":\n      - /url: /settings\n  - button \"主题\":\n    - img\n  - button \"语言\":\n    - img\n  - button \"导入导出\":\n    - img\n  - button \"消息中心 (19)\":\n    - img\n  - button \"个人中心\"\n- main:\n  - main:\n    - button \"切换语言\"\n    - button \"切换主题\"\n    - radio \"正常\" [checked]\n    - text: 正常\n    - radio \"空数据\"\n    - text: 空数据\n    - radio \"加载中\"\n    - text: 加载中\n    - radio \"加载失败\"\n    - text: 加载失败 关键词：\n    - textbox \"关键词\"\n    - button \"查询\"\n    - button \"重置\"\n    - region \"设计模式记录\":\n      - heading \"设计模式记录\" [level=2]\n      - status: 共 18 条\n      - button \"编辑示例\"\n      - table:\n        - rowgroup:\n          - row \"编号 名称\":\n            - columnheader \"编号\"\n            - columnheader \"名称\"\n        - rowgroup:\n          - row \"DS-001 Metritag 1\":\n            - cell \"DS-001\"\n            - cell \"Metritag 1\"\n          - row \"DS-002 Metritag 2\":\n            - cell \"DS-002\"\n            - cell \"Metritag 2\"\n          - row \"DS-003 Metritag 3\":\n            - cell \"DS-003\"\n            - cell \"Metritag 3\"\n          - row \"DS-004 Metritag 4\":\n            - cell \"DS-004\"\n            - cell \"Metritag 4\"\n          - row \"DS-005 Metritag 5\":\n            - cell \"DS-005\"\n            - cell \"Metritag 5\"\n      - navigation \"列表分页\":\n        - text: 共 18 条 每页条数\n        - textbox \"每页条数 5 条/页\"\n        - text: 5 条/页\n        - img\n        - button \"上一页\" [disabled]:\n          - img\n        - button \"1\"\n        - button \"2\"\n        - button \"3\"\n        - button \"4\"\n        - button \"下一页\":\n          - img\n        - text: 跳至\n        - textbox \"跳至\": \"1\"\n        - text: /4 页\n    - region \"详情示例\":\n      - term: 名称：\n      - definition: Metritag\n- button \"打开 AI 助手\"",
+  "error": "AssertionError [ERR_ASSERTION]: Visual baseline 1440-zh-CN-light\n    at check (file:///Users/zhangbin/Desktop/%E9%BA%A6%E5%94%90/%E5%BC%80%E6%94%BE%E6%95%B0%E6%8D%AE%E5%B9%B3%E5%8F%B0/OpenData/scripts/design-browser.mjs:21:48)\n    at snapshot (file:///Users/zhangbin/Desktop/%E9%BA%A6%E5%94%90/%E5%BC%80%E6%94%BE%E6%95%B0%E6%8D%AE%E5%B9%B3%E5%8F%B0/OpenData/scripts/design-browser.mjs:55:5)\n    at async file:///Users/zhangbin/Desktop/%E9%BA%A6%E5%94%90/%E5%BC%80%E6%94%BE%E6%95%B0%E6%8D%AE%E5%B9%B3%E5%8F%B0/OpenData/scripts/design-browser.mjs:126:9"
 }
