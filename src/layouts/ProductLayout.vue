@@ -278,7 +278,7 @@ function updateViewport() {}
 .product-sidebar.is-collapsed .product-sidebar-toggle { justify-content: center; padding: 0; }
 .product-sidebar.is-collapsed .product-toggle-label { display: none; }
 /* 内容区：仅在存在左侧栏时预留 205/64px 侧栏宽度 + 16px 画布间距；无左侧栏（首页等）则占满。 */
-.product-main { flex: 1; min-width: 0; margin-left: 0; padding-top: 0; margin-bottom: 0; }
+.product-main { display: grid; grid-template-columns: minmax(0, 1fr); align-content: stretch; min-height: calc(100dvh - 88px); flex: 1; min-width: 0; margin-left: 0; padding-top: 0; margin-bottom: 0; }
 .product-shell.has-sidebar .product-main { margin-left: 205px; }
 .product-shell.has-sidebar .product-sidebar.is-collapsed + .product-main { margin-left: 64px; }
 @media (max-width: 900px) {
@@ -286,6 +286,7 @@ function updateViewport() {}
   .product-body { flex-direction: column; align-items: stretch; gap: 0; padding: 16px; }
   .product-brand { flex: none; }
   .product-topnav { height: 44px; }
+  .product-main { min-height: 0; }
   .product-main, .product-shell.has-sidebar .product-main, .product-shell.has-sidebar .product-sidebar.is-collapsed + .product-main { margin-left: 0; margin-bottom: 0; padding-top: 0; }
   .product-sidebar, .product-sidebar.is-collapsed { position: static; z-index: auto; flex: none; width: 100%; height: auto; margin-bottom: 16px; padding: 8px 16px; border-bottom: 1px solid var(--app-divider); }
   .product-sidebar > nav { display: flex; gap: 8px; overflow-x: auto; }

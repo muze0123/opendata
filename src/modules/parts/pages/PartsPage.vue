@@ -347,9 +347,9 @@ function confirmDiscard() { drawer.value = false; pendingLeave.value?.(true); pe
       <form class="region filters" @submit.prevent="applyFilters">
         <div v-for="key in visibleFilterKeys" :key="key" class="parts-filter-field">
           <label class="app-field-label" :for="`parts-${key}-filter`">{{ t(`parts.${key}`) }}</label>
-          <a-input v-if="key === 'code'" id="parts-code-filter" v-model="query.code" class="parts-filter-control app-filter-control" allow-clear :placeholder="t('parts.input')" />
-          <a-input v-else-if="key === 'name'" id="parts-name-filter" v-model="query.name" class="parts-filter-control app-filter-control" allow-clear :placeholder="t('parts.input')" />
-          <a-select v-else id="parts-supplier-filter" v-model="query.supplier" class="parts-filter-control app-filter-control" :options="suppliers" allow-clear :aria-label="t('parts.supplier')" :placeholder="t('parts.all')" />
+          <a-input v-if="key === 'code'" id="parts-code-filter" v-model="query.code" class="parts-filter-control app-filter-control" allow-clear :placeholder="t('parts.filterPlaceholder.code')" />
+          <a-input v-else-if="key === 'name'" id="parts-name-filter" v-model="query.name" class="parts-filter-control app-filter-control" allow-clear :placeholder="t('parts.filterPlaceholder.name')" />
+          <a-select v-else id="parts-supplier-filter" :model-value="query.supplier || undefined" @update:model-value="query.supplier = String($event ?? '')" class="parts-filter-control app-filter-control" :options="suppliers" allow-clear :aria-label="t('parts.supplier')" :placeholder="t('parts.filterPlaceholder.supplier')" />
         </div>
         <a-button type="primary" html-type="submit"><template #icon><IconSearch :size="16" /></template>{{ t('parts.search') }}</a-button>
         <a-button class="app-btn-neutral" html-type="button" @click="resetFilters"><template #icon><IconRefresh :size="16" /></template>{{ t('parts.reset') }}</a-button>
@@ -550,6 +550,7 @@ h3 { margin: 0 0 16px; font-size: 16px; }
    4px 标签/控件间距、200px 控件、16px 栅栏；查询/重置/筛选设置紧跟最后一个组件右侧。 */
 .filters, .parts-list { border-radius: var(--mt-ds-control-radius); }
 .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--mt-ds-space-4); }
+.filters :deep(input::placeholder), .filters :deep(.arco-select-view-placeholder) { color: var(--color-text-3); opacity: 1; }
 .parts-filter-field { display: grid; grid-template-columns: minmax(0, var(--mt-ds-filter-width)); align-items: start; justify-items: start; gap: var(--mt-ds-space-1); min-width: 0; }
 .parts-filter-field .app-field-label { font-size: var(--mt-ds-font-caption); font-weight: var(--mt-ds-weight-body); line-height: var(--mt-ds-line-caption); text-align: left; padding: 0; white-space: nowrap; }
 .filters :deep(.parts-filter-control) { width: var(--mt-ds-filter-width); max-width: 100%; }

@@ -228,8 +228,8 @@ async function importData() {
         <label class="app-field-label" :for="`certificate-${key}-filter`">{{ t(`certificates.${key}`) }}</label>
         <a-input v-if="key === 'code'" id="certificate-code-filter" v-model="query.code" class="certificate-filter-control app-filter-control" allow-clear :placeholder="t('certificates.placeholderCode')" />
         <a-input v-else-if="key === 'project'" id="certificate-project-filter" v-model="query.project" class="certificate-filter-control app-filter-control" allow-clear :placeholder="t('certificates.placeholderProject')" />
-        <a-date-picker v-else-if="key === 'issued' || key === 'expires'" :id="`certificate-${key}-filter`" v-model="query[key]" class="certificate-filter-control app-filter-control" :aria-label="t(`certificates.${key}`)" />
-        <a-input v-else-if="key !== 'status'" :id="`certificate-${key}-filter`" v-model="query[key]" class="certificate-filter-control app-filter-control" allow-clear :aria-label="t(`certificates.${key}`)" />
+        <a-date-picker v-else-if="key === 'issued' || key === 'expires'" :id="`certificate-${key}-filter`" v-model="query[key]" class="certificate-filter-control app-filter-control" :aria-label="t(`certificates.${key}`)" :placeholder="t(`certificates.filterPlaceholder.${key}`)" />
+        <a-input v-else-if="key !== 'status'" :id="`certificate-${key}-filter`" v-model="query[key]" class="certificate-filter-control app-filter-control" allow-clear :aria-label="t(`certificates.${key}`)" :placeholder="t(`certificates.filterPlaceholder.${key}`)" />
         <a-select v-else id="certificate-status-filter" v-model="query.status" class="certificate-filter-control app-filter-control" allow-clear :aria-label="t('certificates.status')" :placeholder="t('certificates.placeholderStatus')" :options="STATUS_CODES.map(value => ({ value, label: t(`certificates.${value}`) }))" />
       </div>
       <a-button type="primary" html-type="submit"><template #icon><IconSearch :size="16" /></template>{{ t('certificates.search') }}</a-button>
@@ -352,6 +352,7 @@ async function importData() {
 </template>
 
 <style scoped>
+.certificate-filter-panel :deep(input::placeholder), .certificate-filter-panel :deep(.arco-select-view-placeholder) { color: var(--color-text-3); opacity: 1; }
 .certificate-toolbar { display: flex; flex-wrap: wrap; gap: var(--mt-ds-space-3); margin-bottom: var(--mt-ds-space-3); }
 .certificate-toolbar > :last-child { margin-left: auto; }
 

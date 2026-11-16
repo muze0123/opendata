@@ -250,8 +250,8 @@ async function submitImport() {
         <label v-for="key in visibleFilterKeys" :key="key">
           <span class="app-field-label">{{ t(`regulations.${key}`) }}</span>
           <a-input v-if="key === 'code'" v-model="filters.code" class="app-filter-control" allow-clear :aria-label="t('regulations.code')" :placeholder="t('regulations.placeholderCode')" />
-          <a-select v-else-if="key === 'region'" v-model="filters.region" class="app-filter-control" allow-clear :aria-label="t('regulations.region')" :placeholder="t('regulations.placeholderRegion')" @change="filters.country = ''"><a-option v-for="code in REGION_CODES" :key="code" :value="code">{{ regulationLabel(t,code) }}</a-option></a-select>
-          <a-select v-else-if="key === 'country'" v-model="filters.country" class="app-filter-control" allow-clear :aria-label="t('regulations.country')" :placeholder="t('regulations.placeholderCountry')"><a-option v-for="c in countryOptions" :key="c" :value="c">{{ regulationLabel(t,c) }}</a-option></a-select>
+          <a-select v-else-if="key === 'region'" :model-value="filters.region || undefined" @update:model-value="filters.region = String($event ?? '')" class="app-filter-control" allow-clear :aria-label="t('regulations.region')" :placeholder="t('regulations.placeholderRegion')" @change="filters.country = ''"><a-option v-for="code in REGION_CODES" :key="code" :value="code">{{ regulationLabel(t,code) }}</a-option></a-select>
+          <a-select v-else-if="key === 'country'" :model-value="filters.country || undefined" @update:model-value="filters.country = String($event ?? '')" class="app-filter-control" allow-clear :aria-label="t('regulations.country')" :placeholder="t('regulations.placeholderCountry')"><a-option v-for="c in countryOptions" :key="c" :value="c">{{ regulationLabel(t,c) }}</a-option></a-select>
           <a-range-picker v-else v-model="filters.dates" class="app-filter-control" :aria-label="t('regulations.date')" :placeholder="[t('regulations.startDate'), t('regulations.endDate')]" />
         </label>
         <a-button type="primary" html-type="submit"><template #icon><IconSearch /></template>{{ t('regulations.search') }}</a-button>
@@ -351,6 +351,7 @@ async function submitImport() {
 /* 2026-11-09 用户裁决：字段名 12px 带冒号、左对齐，控件在字段下方、间距 4px；
    单元与查询/重置按 16px 栅栏分布，按钮组紧跟最后一个组件右侧且左对齐。 */
 .filter-fields { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; padding-top:0; }
+.filter-fields :deep(input::placeholder) { color:var(--color-text-3); opacity:1; }
 .filter-fields label { display:grid; grid-template-columns:minmax(0,200px); align-items:start; justify-items:start; gap:4px; min-width:0; white-space:nowrap; }
 .filter-fields :deep(.app-field-label) { font-size:12px; font-weight:400; line-height:20px; text-align:left; padding:0; }
 .filter-fields :deep(.app-filter-control) { width:200px; max-width:100%; }

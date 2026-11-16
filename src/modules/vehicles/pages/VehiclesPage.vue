@@ -388,9 +388,9 @@ function filterNode(node: TreeNodeData) { return String(node.title ?? '').toLowe
       <form class="vehicle-toolbar" @submit.prevent="applySearch">
         <div v-if="showCodeFilter" class="vehicle-filter-unit">
           <label class="app-field-label" for="vehicle-code-filter">{{ t('vehicles.code') }}</label>
-          <a-input id="vehicle-code-filter" v-model="query" class="app-filter-control" allow-clear @press-enter="applySearch" @clear="applySearch" />
+          <a-input id="vehicle-code-filter" v-model="query" class="app-filter-control" :placeholder="t('vehicles.filterInput')" allow-clear @press-enter="applySearch" @clear="applySearch" />
         </div>
-        <div v-for="key in visibleDateFilterKeys" :key="key" class="vehicle-filter-unit"><label class="app-field-label">{{ t(`vehicles.${key}`) }}</label><a-range-picker v-model="dates[key]" class="app-filter-control" :aria-label="t(`vehicles.${key}`)" /></div>
+        <div v-for="key in visibleDateFilterKeys" :key="key" class="vehicle-filter-unit"><label class="app-field-label">{{ t(`vehicles.${key}`) }}</label><a-range-picker v-model="dates[key]" class="app-filter-control" :placeholder="[t('vehicles.startDate'), t('vehicles.endDate')]" :aria-label="t(`vehicles.${key}`)" /></div>
         <a-button type="primary" @click="applySearch"><template #icon><IconSearch :size="16" /></template>{{ t('vehicles.search') }}</a-button>
         <a-button class="app-btn-neutral" @click="resetSearch"><template #icon><IconRefresh :size="16" /></template>{{ t('vehicles.reset') }}</a-button>
         <ColumnSettingsPopover v-model:visible="filterSettingsOpen" :items="filterSettingsItems" :default-items="defaultFilterItems" :title="t('vehicles.filterSettings')" :list-aria-label="t('vehicles.filterListAria')" :show-label="t('vehicles.show')" :restore-label="t('vehicles.restore')" @change="onFilterSettingsChanged"><a-tooltip :content="t('vehicles.filterSettings')"><a-button class="app-btn-neutral vehicle-icon-button" html-type="button" :aria-label="t('vehicles.filterSettings')"><IconFilter :size="16" /></a-button></a-tooltip></ColumnSettingsPopover>
