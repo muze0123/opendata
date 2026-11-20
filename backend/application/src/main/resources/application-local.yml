@@ -1,0 +1,5 @@
+server:
+  address: 127.0.0.1
+opendata:
+  security:
+    dev-token: ${OPENDATA_DEV_TOKEN:}

@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: opendata
+      POSTGRES_USER: opendata
+      POSTGRES_PASSWORD: ${OPENDATA_DATABASE_PASSWORD:?Set OPENDATA_DATABASE_PASSWORD}
+    ports:
+      - "127.0.0.1:${OPENDATA_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - opendata_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opendata -d opendata"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  application:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    environment:
+      OPENDATA_BIND_ADDRESS: 0.0.0.0
+      OPENDATA_DATABASE_URL: jdbc:postgresql://postgres:5432/opendata
+      OPENDATA_DATABASE_USER: opendata
+      OPENDATA_DATABASE_PASSWORD: ${OPENDATA_DATABASE_PASSWORD}
+      PLATFORM_JWT_ISSUER: ${PLATFORM_JWT_ISSUER:-}
+      PLATFORM_JWK_SET_URI: ${PLATFORM_JWK_SET_URI:-}
+      PLATFORM_JWT_AUDIENCE: ${PLATFORM_JWT_AUDIENCE:-opendata}
+      PLATFORM_TASK_EVENT_ENDPOINT: ${PLATFORM_TASK_EVENT_ENDPOINT:-}
+      PLATFORM_SERVICE_TOKEN: ${PLATFORM_SERVICE_TOKEN:-}
+      OPENDATA_OUTBOX_ENABLED: ${OPENDATA_OUTBOX_ENABLED:-false}
+    ports:
+      - "127.0.0.1:4320:4320"
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  opendata_postgres:

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenData task event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "schemaVersion",
+    "producer",
+    "eventType",
+    "tenantId",
+    "aggregateId",
+    "aggregateVersion",
+    "occurredAt",
+    "data",
+    "actorId",
+    "reason"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "schemaVersion": {
+      "const": "1"
+    },
+    "producer": {
+      "const": "opendata"
+    },
+    "eventType": {
+      "enum": [
+        "task.received",
+        "task.started",
+        "task.completed",
+        "task.returned",
+        "task.cancelled",
+        "task.recalled"
+      ]
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregateVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data": {
+      "$ref": "./openapi.json#/components/schemas/Task"
+    },
+    "actorId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 2000
+    }
+  }
+}

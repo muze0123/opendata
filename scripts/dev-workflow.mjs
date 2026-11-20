@@ -22,7 +22,7 @@ function launch(command, args) {
 }
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
-launch('mvn', ['-f', 'server/warmflow/pom.xml', 'spring-boot:run']);
+launch('mvn', ['-f', 'backend/warmflow/pom.xml', 'spring-boot:run']);
 let ready = false;
 for (let attempt = 0; attempt < 180 && !closing; attempt++) {
   try {
@@ -38,6 +38,6 @@ if (!ready) {
   stop();
   process.exitCode = 1;
 } else {
-  launch(process.execPath, ['server/workflow/server.mjs']);
-  launch('pnpm', ['exec', 'vite', '--host', '127.0.0.1']);
+  launch(process.execPath, ['backend/workflow/server.mjs']);
+  launch('pnpm', ['--dir', 'frontend', 'exec', 'vite', '--host', '127.0.0.1']);
 }

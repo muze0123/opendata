@@ -1,0 +1,42 @@
+server:
+  address: ${OPENDATA_BIND_ADDRESS:127.0.0.1}
+  port: ${OPENDATA_PORT:4320}
+  shutdown: graceful
+spring:
+  application:
+    name: opendata-business
+  datasource:
+    url: ${OPENDATA_DATABASE_URL:jdbc:postgresql://127.0.0.1:5432/opendata}
+    username: ${OPENDATA_DATABASE_USER:opendata}
+    password: ${OPENDATA_DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5000
+  flyway:
+    enabled: true
+    clean-disabled: true
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  mvc:
+    problemdetails:
+      enabled: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+opendata:
+  security:
+    issuer: ${PLATFORM_JWT_ISSUER:}
+    jwk-set-uri: ${PLATFORM_JWK_SET_URI:}
+    audience: ${PLATFORM_JWT_AUDIENCE:opendata}
+  platform:
+    event-endpoint: ${PLATFORM_TASK_EVENT_ENDPOINT:}
+    service-token: ${PLATFORM_SERVICE_TOKEN:}
+  outbox:
+    enabled: ${OPENDATA_OUTBOX_ENABLED:false}
+    poll-delay-ms: 5000
