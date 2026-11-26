@@ -51,7 +51,7 @@ function submit() {
     phoneError.value = '';
   }
   if (!code.value.trim()) {
-    codeError.value = t('account.code') + t('designSystem.required');
+    codeError.value = t('account.required', { field: t('account.code') });
     ok = false;
   } else if (code.value.trim() !== DEMO_CODE) {
     codeError.value = t('loginExtra.codeError');

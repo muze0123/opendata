@@ -11,21 +11,38 @@ export interface NumberingRule {
   previewExample: string;
 }
 
-// Local display fixtures; these are not backend business configurations.
-const modules = ['parts', 'controllers', 'vehicles', 'software', 'interfaces', 'sensors',
-  'projects', 'activities', 'risks', 'tests', 'reports', 'documents'] as const;
-export const numberingRules: readonly NumberingRule[] = modules.map((module, index) => {
-  const fixedCharacters = ['PART', 'ECU', 'VEH', 'SW', 'IF', 'SEN', 'PRJ', 'ACT', 'RSK', 'TST', 'RPT', 'DOC'][index]!;
-  const fixedYear = index % 3 === 0 ? null : 2026;
-  const sequenceDigits = index % 2 === 0 ? 4 : 6;
-  return {
-    id: 'mock-' + module,
-    locationKeys: ['nav.data', 'numbering.modules.' + module],
-    fixedCharacters,
-    variableCharacters: index % 2 === 0 ? 'CN' : null,
-    fixedYear,
-    sequenceDigits,
-    previewExample: [fixedCharacters, index % 2 === 0 ? 'CN' : null, fixedYear,
-      '1'.padStart(sequenceDigits, '0')].filter(value => value !== null).join('-'),
-  };
-});
+/**
+ * Local display fixtures for the modules that actually exist under 基础数据库.
+ * The parts row mirrors that module's built-in segment editor defaults; the
+ * certificate and regulation rows mirror their seeded code samples. No backend
+ * business configuration is implied by these fixtures.
+ */
+export const numberingRules: readonly NumberingRule[] = [
+  {
+    id: 'mock-parts',
+    locationKeys: ['nav.data', 'parts.title'],
+    fixedCharacters: 'DDY',
+    variableCharacters: 'ABCD',
+    fixedYear: 2026,
+    sequenceDigits: 4,
+    previewExample: 'DDY-ABCD-2026-0001',
+  },
+  {
+    id: 'mock-certificates',
+    locationKeys: ['nav.data', 'certificates.title'],
+    fixedCharacters: 'CERT',
+    variableCharacters: null,
+    fixedYear: 2024,
+    sequenceDigits: 3,
+    previewExample: 'CERT-2024-001',
+  },
+  {
+    id: 'mock-regulations',
+    locationKeys: ['nav.data', 'regulations.title'],
+    fixedCharacters: 'GB',
+    variableCharacters: null,
+    fixedYear: 2024,
+    sequenceDigits: 3,
+    previewExample: 'GB-2024-001',
+  },
+];

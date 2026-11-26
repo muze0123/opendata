@@ -22,6 +22,8 @@ export interface LibraryEntry {
   agency: string;
   issued: string;
   expires: string;
+  /** 证书文件：只读台账默认只有文件名，file 由上传方注入（File 不可序列化） */
+  file?: { name: string; file?: File };
 }
 
 export interface LibraryRecord {
@@ -110,6 +112,7 @@ export const libraryRecords = ref<LibraryRecord[]>(libraryProjects.map((project,
       agency: 'TÜV',
       issued: '2026-01-10',
       expires: '2029-01-09',
+      file: { name: `${number}.pdf` },
     }],
     events,
     history,

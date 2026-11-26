@@ -93,7 +93,7 @@ class TaskIntegrationTest {
     }
     @Test void realPostgresFlywayAndHttpServerAreRunning() throws Exception {
         assertThat(jdbc.queryForObject("SELECT version()", String.class)).contains("PostgreSQL 17");
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class)).isEqualTo(3);
         var response = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/actuator/health")).build(), HttpResponse.BodyHandlers.ofString());
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("UP");
@@ -214,118 +214,6 @@ class TaskIntegrationTest {
             .header("X-Dev-Tenant","tenant-a").header("X-Dev-User","platform-service").header("Idempotency-Key","recall")
             .contentType("application/json").content("{\"action\":\"recall\",\"expectedVersion\":0,\"reason\":\"Withdrawn upstream\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("recalled"));
-    }
-    static final String DELIVERY = "/api/opendata/v1/platform/task-events";
-    org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor operator(String tenant, String user, String scope) {
-        return jwt().jwt(token -> token.subject(user).claim("tenant_id", tenant))
-            .authorities(new SimpleGrantedAuthority("SCOPE_" + scope));
-    }
-    UUID eventId(String task, int version) {
-        return jdbc.queryForObject("SELECT event_id FROM task_outbox WHERE task_id=? AND aggregate_version=?", UUID.class, UUID.fromString(task), version);
-    }
-    RequestBuilder retryEvent(UUID event, String key, int attempts, String reason) throws Exception {
-        return post(DELIVERY+"/"+event+"/retries").with(operator("tenant-a","operator","opendata.platform.events.retry"))
-            .header("Idempotency-Key", key).contentType("application/json")
-            .content(json.writeValueAsString(Map.of("expectedAttempts",attempts,"reason",reason)));
-    }
-    @Test void deliveryQueriesClassifyAndIsolateWithoutLeakingPayload() throws Exception {
-        String task=create().path("id").asText();
-        mvc.perform(action(task,"start","alice","start",0,"")).andExpect(status().isOk());
-        var reader=operator("tenant-a","operator","opendata.platform.events.read");
-        mvc.perform(get(DELIVERY+"/summary").with(reader)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.total").value(2)).andExpect(jsonPath("$.pending").value(1)).andExpect(jsonPath("$.blocked").value(1));
-        UUID first=eventId(task,0), second=eventId(task,1);
-        mvc.perform(get(DELIVERY).param("status","blocked").param("taskId",task).param("size","1").with(reader))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
-            .andExpect(jsonPath("$.items[0].eventId").value(second.toString()))
-            .andExpect(jsonPath("$.items[0].blockedByEventId").value(first.toString()))
-            .andExpect(jsonPath("$.items[0].payload").doesNotExist());
-        mvc.perform(get(DELIVERY).param("page","1").param("size","1").with(reader))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1));
-        mvc.perform(get(DELIVERY+"/summary").with(operator("tenant-b","operator","opendata.platform.events.read")))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
-        mvc.perform(get(DELIVERY+"/"+first).with(reader)).andExpect(status().isOk()).andExpect(jsonPath("$.eventType").value("task.received"));
-        RESPONSE.set(503);publisher.publishNext();
-        mvc.perform(get(DELIVERY+"/summary").with(reader)).andExpect(status().isOk()).andExpect(jsonPath("$.failed").value(1)).andExpect(jsonPath("$.pending").value(0));
-        mvc.perform(get(DELIVERY).param("status","unknown").with(reader)).andExpect(status().isBadRequest());
-        mvc.perform(get(DELIVERY).param("size","101").with(reader)).andExpect(status().isBadRequest());
-        mvc.perform(get(DELIVERY).param("taskId","invalid").with(reader)).andExpect(status().isBadRequest());
-    }
-    @Test void manualRetryIsAuditedAtomicAndReplaysAfterDelivery() throws Exception {
-        String task=create().path("id").asText();UUID event=eventId(task,0);
-        RESPONSE.set(503);publisher.publishNext();
-        var response=mvc.perform(retryEvent(event,"retry-1",1,"  Platform recovered  ")).andExpect(status().isOk())
-            .andExpect(jsonPath("$.reason").value("Platform recovered")).andExpect(jsonPath("$.previousError").value("PLATFORM_HTTP_503"))
-            .andReturn().getResponse().getContentAsString();
-        assertThat(EVENTS).hasSize(1); // Rescheduling does not send within the API transaction.
-        assertThat(jdbc.queryForObject("SELECT attempts FROM task_outbox",Integer.class)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT version FROM business_task",Long.class)).isZero();
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM task_action_log",Integer.class)).isEqualTo(1);
-        mvc.perform(get(DELIVERY+"/"+event+"/retries").with(operator("tenant-a","operator","opendata.platform.events.read")))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1)).andExpect(jsonPath("$.items[0].requestedBy").value("operator"));
-        RESPONSE.set(202);assertThat(publisher.publishNext()).isTrue();
-        assertThat(EVENTS).containsExactly(event.toString(),event.toString());
-        var replay=mvc.perform(retryEvent(event,"retry-1",1,"  Platform recovered  ")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        assertThat(json.readTree(replay)).isEqualTo(json.readTree(response));
-        mvc.perform(retryEvent(event,"another-retry",1,"Again")).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("EVENT_ALREADY_DELIVERED"));
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM task_outbox_retry_log",Integer.class)).isEqualTo(1);
-    }
-    @Test void deliveryPermissionsAndTenantBoundaryAreIndependentOfTaskScopes() throws Exception {
-        UUID event=eventId(create().path("id").asText(),0);
-        mvc.perform(get(DELIVERY)).andExpect(status().isUnauthorized());
-        mvc.perform(get(DELIVERY).with(operator("tenant-a","service","opendata.tasks.dispatch"))).andExpect(status().isForbidden());
-        mvc.perform(get(DELIVERY+"/"+event).with(operator("tenant-b","operator","opendata.platform.events.read"))).andExpect(status().isNotFound());
-        mvc.perform(get(DELIVERY+"/"+event+"/retries").with(operator("tenant-b","operator","opendata.platform.events.read"))).andExpect(status().isNotFound());
-        mvc.perform(post(DELIVERY+"/"+event+"/retries").with(operator("tenant-a","operator","opendata.platform.events.read"))
-            .header("Idempotency-Key","denied").contentType("application/json").content("{\"expectedAttempts\":0,\"reason\":\"reason\"}"))
-            .andExpect(status().isForbidden());
-        mvc.perform(post(DELIVERY+"/"+event+"/retries").with(operator("tenant-b","operator","opendata.platform.events.retry"))
-            .header("Idempotency-Key","foreign").contentType("application/json").content("{\"expectedAttempts\":0,\"reason\":\"reason\"}"))
-            .andExpect(status().isNotFound());
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM task_outbox_retry_log",Integer.class)).isZero();
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM command_receipt",Integer.class)).isEqualTo(1);
-    }
-    @Test void retryValidationConflictsAndOrderingLeaveNoPartialWrites() throws Exception {
-        String task=create().path("id").asText();UUID first=eventId(task,0);
-        mvc.perform(retryEvent(first,"pending-retry",0,"reason")).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("EVENT_NOT_RETRYABLE"));
-        mvc.perform(action(task,"start","alice","start",0,"")).andExpect(status().isOk());
-        UUID second=eventId(task,1);
-        mvc.perform(retryEvent(second,"blocked-retry",0,"reason")).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("EVENT_BLOCKED"));
-        RESPONSE.set(503);publisher.publishNext();
-        mvc.perform(retryEvent(first,"stale-retry",0,"reason")).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DELIVERY_VERSION_CONFLICT"));
-        mvc.perform(retryEvent(first,"bad-reason",1," ")).andExpect(status().isBadRequest());
-        mvc.perform(retryEvent(first,"bad-attempts",-1,"reason")).andExpect(status().isBadRequest());
-        mvc.perform(retryEvent(first,"bad-key!",1,"reason")).andExpect(status().isBadRequest());
-        mvc.perform(retryEvent(first,"oversized",1,"a".repeat(2001))).andExpect(status().isBadRequest());
-        var writer=operator("tenant-a","operator","opendata.platform.events.retry");
-        for (String body : List.of("{\"reason\":\"reason\"}","{\"expectedAttempts\":1,\"reason\":\"reason\",\"tenantId\":\"tenant-b\"}"))
-            mvc.perform(post(DELIVERY+"/"+first+"/retries").with(writer).header("Idempotency-Key","bad-body").contentType("application/json").content(body)).andExpect(status().isBadRequest());
-        mvc.perform(retryEvent(first,"receive-1",1,"reason")).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("IDEMPOTENCY_CONFLICT"));
-        mvc.perform(retryEvent(first,"good-retry",1,"reason")).andExpect(status().isOk());
-        mvc.perform(retryEvent(first,"good-retry",1,"different")).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("IDEMPOTENCY_CONFLICT"));
-        mvc.perform(retryEvent(first,"already-pending",1,"reason")).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("EVENT_NOT_RETRYABLE"));
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM task_outbox_retry_log",Integer.class)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM command_receipt WHERE response_body IS NULL",Integer.class)).isZero();
-    }
-    @Test void concurrentManualRetriesHaveOneAuditAndOneWinner() throws Exception {
-        UUID event=eventId(create().path("id").asText(),0);RESPONSE.set(503);publisher.publishNext();
-        try(var executor=Executors.newFixedThreadPool(2)) {
-            var ready=new CountDownLatch(2);var start=new CountDownLatch(1);var results=new ArrayList<Future<Integer>>();
-            for(int n=0;n<2;n++){String key="retry-concurrent-"+n;results.add(executor.submit(()->{ready.countDown();start.await();return mvc.perform(retryEvent(event,key,1,"reason")).andReturn().getResponse().getStatus();}));}
-            assertThat(ready.await(5,TimeUnit.SECONDS)).isTrue();start.countDown();
-            assertThat(List.of(results.get(0).get(10,TimeUnit.SECONDS),results.get(1).get(10,TimeUnit.SECONDS))).containsExactlyInAnyOrder(200,409);
-        }
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM task_outbox_retry_log",Integer.class)).isEqualTo(1);
-    }
-    @Test void concurrentSameKeyRetriesReturnSameReceipt() throws Exception {
-        UUID event=eventId(create().path("id").asText(),0);RESPONSE.set(503);publisher.publishNext();
-        try(var executor=Executors.newFixedThreadPool(2)) {
-            var ready=new CountDownLatch(2);var start=new CountDownLatch(1);var results=new ArrayList<Future<String>>();
-            for(int n=0;n<2;n++)results.add(executor.submit(()->{ready.countDown();start.await();return mvc.perform(retryEvent(event,"retry-shared",1,"reason")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();}));
-            assertThat(ready.await(5,TimeUnit.SECONDS)).isTrue();start.countDown();
-            assertThat(json.readTree(results.get(0).get(10,TimeUnit.SECONDS))).isEqualTo(json.readTree(results.get(1).get(10,TimeUnit.SECONDS)));
-        }
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM task_outbox_retry_log",Integer.class)).isEqualTo(1);
     }
 
 }

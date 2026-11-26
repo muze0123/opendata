@@ -73,22 +73,10 @@ const router = createRouter({
       meta: { layout: 'product', requiresAuth: true },
     },
     {
-      path: '/tasks/:taskId/application',
-      name: 'task-application-demo',
-      component: () => import('../modules/dashboard/pages/AppDemoPage.vue'),
-      meta: { layout: 'product', requiresAuth: true },
-    },
-    {
       path: '/tasks/:taskId',
       name: 'task-detail',
       component: () => import('../modules/task-center/pages/TaskDetailPage.vue'),
       meta: { layout: 'product', requiresAuth: true },
-    },
-    {
-      path: '/apps/:appId',
-      name: 'app-demo',
-      component: () => import('../modules/dashboard/pages/AppDemoPage.vue'),
-      meta: { requiresAuth: false, layout: false },
     },
     {
       path: '/data',

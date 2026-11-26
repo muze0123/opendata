@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
 import { useI18n } from 'vue-i18n';
 import { IconApps, IconDown, IconFullscreen, IconFullscreenExit, IconInfoCircle } from '@arco-design/web-vue/es/icon';
@@ -18,7 +17,6 @@ const appIconUrls: Partial<Record<OverviewApp['icon'], string>> = {
   operations: operationsIcon,
 };
 
-const router = useRouter();
 const { t } = useI18n({ useScope: 'global' });
 const reportId = ref('default');
 const report = computed(() => reports.find((item) => item.id === reportId.value) ?? reports[0]!);
@@ -111,8 +109,11 @@ function activateApp(id: string) {
 }
 function launchApp(id: string) {
   const app = overviewApps.find((item) => item.id === id);
-  const url = app?.url ?? router.resolve({ name: 'app-demo', params: { appId: id } }).href;
-  const opened = window.open(url, '_blank');
+  if (!app?.url) {
+    Message.warning(t('overview.launchUnavailable'));
+    return;
+  }
+  const opened = window.open(app.url, '_blank');
   if (opened) opened.opener = null;
   else Message.error(t('overview.popupBlocked'));
 }
@@ -464,7 +465,7 @@ function launchApp(id: string) {
     </div>
     <a-drawer
       :visible="!!selectedAlert"
-      :width="400"
+      width="min(400px, 100vw)"
       :title="t('overview.drawer.title')"
       :footer="false"
       @cancel="selectedAlert = null"

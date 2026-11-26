@@ -4,8 +4,9 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { Message, type FormInstance } from '@arco-design/web-vue';
-import { IconEye, IconLeft, IconUpload, IconDownload, IconFolder, IconFilter, IconMore, IconPlus, IconRefresh, IconSearch, IconSettings } from '@arco-design/web-vue/es/icon';
+import { IconClose, IconFile, IconFilePdf, IconEye, IconLeft, IconUpload, IconDownload, IconFolder, IconFilter, IconMore, IconPlus, IconRefresh, IconSearch, IconSettings } from '@arco-design/web-vue/es/icon';
 import AttachmentPreview from '../components/AttachmentPreview.vue';
+import RichValue from '../components/RichValue.vue';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog.vue';
 import ColumnSettingsPopover, { type ColumnSettingsItem } from '../../../shared/components/ColumnSettingsPopover.vue';
 import { freezeEdgeColumns } from '../../../shared/tableColumns';
@@ -19,6 +20,7 @@ import { exportParts, importParts, partsTemplateBlob, PART_SHEET_FIELDS } from '
 import { cachePartDetail, readPartDetail } from '../data/detailSnapshot';
 import { useTaskCenterStore } from '../../task-center/stores/taskCenter';
 import { regulationRows } from '../../regulations/data/regulations';
+import { safeRichHtml, richHasContent } from '../utils/richText';
 import {
   CURRENT_USER, PART_STATUSES, partTimeline, seedPart, taskTime,
   emptyPart, type Part, type PartAttachment, type Segment, type PartStatus,
@@ -152,11 +154,12 @@ const creatorOptions = computed(() => [...new Set(rows.value.map(row => row.crea
 const statusOptions = computed(() => PART_STATUSES.map(code => ({ value: code, label: t(`parts.statuses.${code}`) })));
 
 const COLUMN_KEYS = [
-  'code', 'name', 'regulationCode', 'certificate', 'certificateNo', 'certificateVersion',
-  'issueDate', 'model', 'brand', 'creator', 'createdAt', 'updater', 'updatedAt', 'status',
+  'code', 'name', 'regulationCode', 'certificateNo', 'certificateVersion',
+  'issueDate', 'issuer', 'agency', 'validUntil', 'model', 'brand',
+  'creator', 'createdAt', 'updater', 'updatedAt', 'status',
 ] as const;
 type ColumnKey = (typeof COLUMN_KEYS)[number];
-const HIDDEN_COLUMNS: readonly ColumnKey[] = ['certificate', 'model', 'brand', 'creator', 'updater', 'updatedAt'];
+const HIDDEN_COLUMNS: readonly ColumnKey[] = ['issuer', 'agency', 'validUntil', 'model', 'brand', 'creator', 'updater', 'updatedAt'];
 const defaultColumnSettings = COLUMN_KEYS.map(key => ({
   key,
   visible: !HIDDEN_COLUMNS.includes(key),
@@ -213,11 +216,17 @@ const columns = computed(() => freezeEdgeColumns([
   ...columnSettings.value.filter(item => item.visible).map(item => ({
     title: t(item.key === 'status' ? 'parts.certificateStatus' : `parts.${item.key}`),
     dataIndex: item.key,
-    slotName: item.key === 'status' ? 'status' : undefined,
+    slotName: item.key === 'status' ? 'status' : item.key === 'brand' ? 'brand' : undefined,
     width: item.key === 'code' ? 170 : 150,
   })),
   { title: t('parts.actions'), dataIndex: 'actions', slotName: 'actions', width: 180 },
 ]));
+/** 商标为富文本 HTML，列表单元格只显示去标签纯文本摘要。 */
+function brandText(html: string): string {
+  const host = document.createElement('div');
+  host.innerHTML = html || '';
+  return (host.textContent || '').replace(/\s+/g, ' ').trim();
+}
 const horizontalWidth = computed(() => columns.value.reduce((total, column) => total + Number(column.width ?? 0), 0));
 
 /* ---------------------------------------- 新增 / 编辑抽屉 */
@@ -228,7 +237,7 @@ const variable = ref('');
 const snapshot = ref('');
 function formState() {
   return JSON.stringify({
-    form: { ...form, certificateFile: form.certificateFile?.name, brandFile: form.brandFile?.name },
+    form: { ...form, certificateFile: form.certificateFile?.name },
     variable: variable.value,
   });
 }
@@ -239,41 +248,56 @@ function closeDrawer() { if (dirty.value) { discard.value = true; return; } draw
 function open(row?: Part) {
   const source = row ?? emptyPart();
   Object.assign(form, JSON.parse(JSON.stringify(source)));
-  // 附件必须显式赋值：emptyPart 不含这两个键，Object.assign 不会清掉上一次的残留（新增会带出旧文件）；
-  // 且 JSON 克隆会把 File 变成 {}，编辑时需从源行按引用恢复。
+  // 附件必须显式赋值：Object.assign 不覆盖 absent 键（新增会带出旧文件）；
+  // 且 JSON 克隆会把 File 变成 {}，编辑时需从源行浅拷贝恢复。
   form.certificateFile = source.certificateFile ? { ...source.certificateFile } : undefined;
-  form.brandFile = source.brandFile ? { ...source.brandFile } : undefined;
   variable.value = '';
   snapshot.value = formState();
   drawer.value = true;
   formRef.value?.clearValidate();
 }
-const DETAIL_FIELDS = ['name', 'regulationCode', 'certificate', 'certificateNo', 'certificateVersion', 'issueDate', 'model', 'brand', 'versionNote'] as const;
-const requiredFields = ['name', 'regulationCode', 'certificate', 'certificateNo', 'certificateVersion', 'issueDate', 'model', 'brand'] as const;
+/**
+ * 抽屉字段顺序（2026-11-23 用户裁决）：
+ * 编号（独立逻辑）→ 法规编号 → 名称 → 商标(富文本) → 型号 → 证书编号 → 版本号 →
+ * 签发日期 → 签发机构 → 认证机构 → 有效期至 → 零部件证书(纯上传) → 版本说明。
+ */
+const DETAIL_FIELDS = ['regulationCode', 'name', 'brand', 'model', 'certificateNo', 'certificateVersion', 'issueDate', 'issuer', 'agency', 'validUntil'] as const;
+const requiredFields = ['regulationCode', 'name', 'model', 'certificateNo', 'certificateVersion', 'issueDate', 'issuer', 'agency', 'validUntil'] as const;
 const fieldRules = computed(() => Object.fromEntries(requiredFields.map(field => [field, [
   { required: true, message: t('parts.required') },
   { validator: (value: string, callback: (error?: string) => void) => callback(String(value ?? '').trim() ? undefined : t('parts.required')) },
 ]])));
 const rules = computed(() => ({
   ...fieldRules.value,
-  certificateFile: [{ validator: (_value: PartAttachment | undefined, callback: (error?: string) => void) => callback(form.certificateFile ? undefined : t('parts.required')) }],
-  brandFile: [{ validator: (_value: PartAttachment | undefined, callback: (error?: string) => void) => callback(form.brandFile ? undefined : t('parts.required')) }],
+  // 商标富文本必填（2026-11-23 用户裁决）：值为 HTML，空编辑器也会产出 <p><br></p>，
+  // 用 richHasContent 白名单判定真实内容；required:true 仅负责渲染 Arco 必填星号。
+  brand: [
+    { required: true, message: t('parts.required') },
+    { validator: (value: string, callback: (error?: string) => void) => callback(richHasContent(value ?? '') ? undefined : t('parts.required')) },
+  ],
+  // 附件必传：required:true 让 Arco 渲染必填星号，validator 兜住「有 name 无 file」等边界。
+  certificateFile: [
+    { required: true, message: t('parts.required') },
+    { validator: (_value: PartAttachment | undefined, callback: (error?: string) => void) => callback(form.certificateFile ? undefined : t('parts.required')) },
+  ],
 }));
 
-const certificateInput = ref<HTMLInputElement>();
-const brandInput = ref<HTMLInputElement>();
-function chooseAttachment(field: 'certificateFile' | 'brandFile') {
-  const input = field === 'certificateFile' ? certificateInput.value : brandInput.value;
-  if (input) { input.value = ''; input.click(); }
+/** 附件文件类型图标：PDF 用专用图标，其余（png/doc/docx）用通用文件图标，与法规附件行一致。 */
+function attachmentIcon(fileName: string) {
+  return fileName.toLowerCase().endsWith('.pdf') ? IconFilePdf : IconFile;
 }
-function selectAttachment(field: 'certificateFile' | 'brandFile', event: Event) {
+const certificateInput = ref<HTMLInputElement>();
+function chooseAttachment() {
+  if (certificateInput.value) { certificateInput.value.value = ''; certificateInput.value.click(); }
+}
+function selectAttachment(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
   if (!/\.(png|pdf|doc|docx)$/i.test(file.name) || file.size > 20 * 1024 * 1024) {
     Message.error(t('parts.fileError'));
     return;
   }
-  form[field] = { name: file.name, file };
+  form.certificateFile = { name: file.name, file };
 }
 function previewUrl(attachment?: PartAttachment) {
   // 刷新后 localStorage 只留文件名（File 不可序列化），此时不给 URL 而是由调用方提示。
@@ -334,7 +358,7 @@ function configure() {
 /* ---------------------------------------- 保存草稿 / 提交 / 删除 / 复制 / 撤回 */
 /** 附件必传校验：提交时零部件证书与商标的附件缺一不可（保存草稿不强制）。 */
 function attachmentsMissing(): boolean {
-  return !form.certificateFile || !form.brandFile;
+  return !form.certificateFile;
 }
 async function save(draft = false) {
   if (!draft) {
@@ -352,7 +376,6 @@ async function save(draft = false) {
   // JSON 克隆会把 File 变成 {}，附件必须从 form 按浅拷贝恢复，
   // 否则详情页预览/下载拿到的 file 不是 Blob，createObjectURL 直接抛错。
   base.certificateFile = form.certificateFile ? { ...form.certificateFile } : undefined;
-  base.brandFile = form.brandFile ? { ...form.brandFile } : undefined;
   // 状态流转：保存草稿 → 待提交；提交 → 审批中（进入审批阶段）。
   const record = seedPart({
     ...base,
@@ -379,21 +402,7 @@ function remove() {
   if (index >= 0) rows.value.splice(index, 1);
   deleting.value = undefined;
 }
-/** 复制：预填当前记录内容，编号重新生成，附件不随复制带入，名称加「（副本）」。 */
-function copyRow(row: Part) {
-  open({
-    ...JSON.parse(JSON.stringify(row)),
-    id: '',
-    code: '',
-    name: `${row.name}（副本）`,
-    status: 'submitting',
-    createdAt: '',
-    events: [],
-    history: [],
-    certificateFile: undefined,
-    brandFile: undefined,
-  });
-}
+/** 复制功能已按 2026-11-23 用户裁决移除。 */
 function withdraw(row: Part) {
   row.status = 'withdrawn';
   row.events.push({ id: crypto.randomUUID(), action: 'withdraw', actor: CURRENT_USER, time: taskTime() });
@@ -402,20 +411,21 @@ function withdraw(row: Part) {
 }
 
 /** 状态-操作矩阵（2026-11-20 用户确认）。视角：submitter=提交人 / approver=审批人；本地演示默认提交人视角。 */
-type RowAction = 'detail' | 'edit' | 'copy' | 'delete' | 'withdraw' | 'approve';
+type RowAction = 'detail' | 'edit' | 'delete' | 'withdraw' | 'approve';
 const perspective = ref<'submitter' | 'approver'>('submitter');
+/** 状态-操作矩阵（2026-11-23 用户裁决：去掉复制）。 */
 const ROW_ACTIONS: Record<PartStatus | '', RowAction[]> = {
-  submitting: ['detail', 'edit', 'copy', 'delete'],
-  reviewing: ['detail', 'withdraw', 'copy', 'delete'],
-  completed: ['detail', 'copy', 'delete'],
-  rejected: ['detail', 'edit', 'copy', 'delete'],
-  withdrawn: ['detail', 'edit', 'copy', 'delete'],
-  '': ['detail', 'edit', 'copy', 'delete'],
+  submitting: ['detail', 'edit', 'delete'],
+  reviewing: ['detail', 'withdraw', 'delete'],
+  completed: ['detail', 'delete'],
+  rejected: ['detail', 'edit', 'delete'],
+  withdrawn: ['detail', 'edit', 'delete'],
+  '': ['detail', 'edit', 'delete'],
 };
 function rowActions(status: PartStatus | ''): RowAction[] {
   const base = ROW_ACTIONS[status] ?? ROW_ACTIONS.submitting!;
   if (status === 'reviewing' && perspective.value === 'approver') {
-    return ['detail', 'approve', 'copy', 'delete'];
+    return ['detail', 'approve', 'delete'];
   }
   return base;
 }
@@ -425,7 +435,6 @@ function overflowRowActions(status: PartStatus | ''): RowAction[] { return rowAc
 const ROW_ACTION_LABEL: Record<RowAction, () => string> = {
   detail: () => t('parts.detail'),
   edit: () => t('parts.edit'),
-  copy: () => t('parts.copy'),
   delete: () => t('parts.delete'),
   withdraw: () => t('parts.withdraw'),
   approve: () => t('parts.approve'),
@@ -433,7 +442,6 @@ const ROW_ACTION_LABEL: Record<RowAction, () => string> = {
 const ROW_ACTION_HANDLER: Record<RowAction, (row: Part) => void> = {
   detail: row => void router.push(`/data/parts/${row.id}`),
   edit: row => open(row),
-  copy: row => copyRow(row),
   delete: row => { deleting.value = row; },
   withdraw: row => withdraw(row),
   approve: row => void router.push({ path: `/data/parts/${row.id}`, query: { mode: 'approval' } }),
@@ -510,25 +518,32 @@ function confirmDiscard() { drawer.value = false; pendingLeave.value?.(true); pe
           <div class="block-title"><h3>{{ t('parts.basic') }}</h3></div>
           <!-- 基本信息：与证书/法规详情一致的 app-detail-list 三列布局（标签值同行、16px 栅栏） -->
           <dl class="app-detail-list part-basic-fields">
-            <div v-for="field in ['code', 'name', 'certificateStatus', 'regulationCode', 'certificateNo', 'certificateVersion', 'issueDate', 'creator', 'createdAt', 'updater', 'updatedAt'] as const" :key="field" class="app-detail-row">
+            <div v-for="field in ['code', 'name', 'certificateStatus', 'regulationCode', 'certificateNo', 'certificateVersion', 'issueDate', 'issuer', 'agency', 'validUntil', 'model', 'creator', 'createdAt', 'updater', 'updatedAt'] as const" :key="field" class="app-detail-row">
               <dt class="app-detail-label">{{ t(field === 'certificateStatus' ? 'parts.certificateStatus' : `parts.${field}`) }}</dt>
               <dd class="app-detail-value">
                 <AppStatusTag v-if="field === 'certificateStatus'" :role="statusTag(detail.status)" :label="statusLabel(detail.status)" />
                 <template v-else>{{ detail[field] || '—' }}</template>
               </dd>
             </div>
-            <!-- 证书与商标只读，附件通过图标查看与下载。 -->
-            <div v-for="field in ['certificate', 'brand'] as const" :key="field" class="app-detail-row">
-              <dt class="app-detail-label">{{ t(`parts.${field}`) }}</dt>
+            <!-- 零部件证书：纯附件（预览/下载）；商标：富文本安全渲染。 -->
+            <div class="app-detail-row">
+              <dt class="app-detail-label">{{ t('parts.certificate') }}</dt>
               <dd class="app-detail-value">
                 <div class="part-file-cell">
-                  <span>{{ detail[field] || '—' }}</span>
-                  <div v-if="field === 'certificate' ? detail.certificateFile : detail.brandFile" class="part-file-actions">
-                    <span class="part-file-name">{{ (field === 'certificate' ? detail.certificateFile : detail.brandFile)?.name }}</span>
-                    <a-button type="text" :aria-label="t('parts.filePreview')" :title="t('parts.filePreview')" @click="previewAttachment(field === 'certificate' ? detail.certificateFile : detail.brandFile)"><template #icon><IconEye :size="16" /></template></a-button>
-                    <a-button type="text" :aria-label="t('parts.downloadFile')" :title="t('parts.downloadFile')" @click="downloadAttachment(field === 'certificate' ? detail.certificateFile : detail.brandFile)"><template #icon><IconDownload :size="16" /></template></a-button>
+                  <div v-if="detail.certificateFile" class="part-file-actions">
+                    <span class="part-file-name">{{ detail.certificateFile.name }}</span>
+                    <a-button type="text" :aria-label="t('parts.filePreview')" :title="t('parts.filePreview')" @click="previewAttachment(detail.certificateFile)"><template #icon><IconEye :size="16" /></template></a-button>
+                    <a-button type="text" :aria-label="t('parts.downloadFile')" :title="t('parts.downloadFile')" @click="downloadAttachment(detail.certificateFile)"><template #icon><IconDownload :size="16" /></template></a-button>
                   </div>
+                  <span v-else>—</span>
                 </div>
+              </dd>
+            </div>
+            <div class="app-detail-row">
+              <dt class="app-detail-label">{{ t('parts.brand') }}</dt>
+              <dd class="app-detail-value">
+                <div v-if="detail.brand" class="part-brand-rich" v-html="safeRichHtml(detail.brand)" />
+                <span v-else>—</span>
               </dd>
             </div>
           </dl>
@@ -606,6 +621,7 @@ function confirmDiscard() { drawer.value = false; pendingLeave.value?.(true); pe
         </div>
         <a-table class="parts-table" :columns="columns" :data="pagedRows" row-key="id" :bordered="false" :stripe="false" :pagination="false" :scroll="{ x: horizontalWidth }">
           <template #status="{ record }"><AppStatusTag :role="statusTag(record.status)" :label="statusLabel(record.status)" /></template>
+          <template #brand="{ record }">{{ brandText(record.brand) || '—' }}</template>
           <template #actions="{ record }">
             <!-- 状态-操作矩阵 + 操作列分流：前 2 个直显（按操作频率排序），其余进「···」（DESIGN.md · Row action overflow） -->
             <div class="parts-row-actions">
@@ -642,28 +658,43 @@ function confirmDiscard() { drawer.value = false; pendingLeave.value?.(true); pe
           </div>
         </a-form-item>
 
-        <a-form-item v-for="field in DETAIL_FIELDS" :key="field" :field="field" :class="{ 'part-attach-item': field === 'certificate' || field === 'brand' }">
+        <a-form-item v-for="field in DETAIL_FIELDS" :key="field" :field="field">
           <!-- 必填星号由 Arco rules 的 required 自动渲染，此处不再手动加星号（避免双星号）。 -->
           <template #label><span class="app-field-label">{{ t(`parts.${field}`) }}</span></template>
           <a-select v-if="field === 'regulationCode'" v-model="form.regulationCode" :options="regulationOptions" show-search :placeholder="t('parts.inputPlaceholder.regulationCode')" />
+          <!-- 商标：富文本（2026-11-23 用户裁决，去掉上传与输入框） -->
+          <RichValue v-else-if="field === 'brand'" v-model="form.brand" :label="t('parts.brand')" input-id="part-brand-editor" />
           <a-date-picker v-else-if="field === 'issueDate'" v-model="form.issueDate" :placeholder="t('parts.inputPlaceholder.issueDate')" class="part-full-control" />
-          <a-textarea v-else-if="field === 'versionNote'" v-model="form.versionNote" :max-length="200" show-word-limit :placeholder="t('parts.inputPlaceholder.versionNote')" />
+          <a-date-picker v-else-if="field === 'validUntil'" v-model="form.validUntil" :placeholder="t('parts.inputPlaceholder.validUntil')" class="part-full-control" />
           <a-input v-else v-model="form[field]" :max-length="field === 'certificateVersion' ? 20 : 100" show-word-limit :placeholder="t(`parts.inputPlaceholder.${field}`)" />
+        </a-form-item>
 
-          <!-- 附件行：上传文件按钮 + 格式提示在同一行；上传后只显示文件名与移除。 -->
-          <div v-if="field === 'certificate' || field === 'brand'" class="part-upload">
-            <input :ref="el => { if (field === 'certificate') certificateInput = el as HTMLInputElement; else brandInput = el as HTMLInputElement }" type="file" accept=".png,.pdf,.doc,.docx" hidden @change="selectAttachment(field === 'certificate' ? 'certificateFile' : 'brandFile', $event)" />
-            <div v-if="!(field === 'certificate' ? form.certificateFile : form.brandFile)" class="part-upload-row">
-              <a-button class="app-btn-neutral" @click="chooseAttachment(field === 'certificate' ? 'certificateFile' : 'brandFile')"><template #icon><IconUpload :size="16" /></template>{{ t('parts.uploadFile') }}</a-button>
+        <!-- 零部件证书：纯附件上传（2026-11-23 用户裁决，去掉输入框；交互不变：png/pdf/word、1 个、≤20MB）。位于有效期至之后、版本说明之前。 -->
+        <a-form-item field="certificateFile">
+          <template #label><span class="app-field-label">{{ t('parts.certificate') }}</span></template>
+          <div class="part-upload">
+            <input ref="certificateInput" type="file" accept=".png,.pdf,.doc,.docx" hidden @change="selectAttachment($event)" />
+            <div v-if="!form.certificateFile" class="part-upload-row">
+              <a-button class="app-btn-neutral" @click="chooseAttachment()"><template #icon><IconUpload :size="16" /></template>{{ t('parts.uploadFile') }}</a-button>
               <span class="part-upload-hint">{{ t('parts.fileHint') }}</span>
             </div>
-            <div v-else class="part-uploaded">
-              <span class="part-uploaded-name">{{ (field === 'certificate' ? form.certificateFile : form.brandFile)?.name }}</span>
-              <a-button type="text" status="danger" @click="field === 'certificate' ? (form.certificateFile = undefined) : (form.brandFile = undefined)">{{ t('parts.removeFile') }}</a-button>
+            <!-- 已上传：文件类型图标 + 文件名 + × 移除（mini 文字按钮居右），与新增法规的法规文件行一致 -->
+            <div v-else class="part-file-list">
+              <div class="part-file-item">
+                <component :is="attachmentIcon(form.certificateFile.name)" :size="16" class="part-file-type" />
+                <span class="part-file-item-name">{{ form.certificateFile.name }}</span>
+                <a-button type="text" size="mini" class="part-file-remove" :aria-label="t('parts.removeFile')" :title="t('parts.removeFile')" @click="form.certificateFile = undefined"><template #icon><IconClose :size="14" /></template></a-button>
+              </div>
             </div>
           </div>
         </a-form-item>
+
+        <a-form-item field="versionNote">
+          <template #label><span class="app-field-label">{{ t('parts.versionNote') }}</span></template>
+          <a-textarea v-model="form.versionNote" :max-length="200" show-word-limit :placeholder="t('parts.inputPlaceholder.versionNote')" />
+        </a-form-item>
       </a-form>
+
       <template #footer>
         <div class="parts-drawer-footer">
           <a-button class="app-btn-neutral" @click="closeDrawer">{{ t('parts.cancel') }}</a-button>
@@ -760,10 +791,21 @@ h3 { margin: 0 0 16px; font-size: 16px; }
 .part-upload-hint { margin: 0; color: var(--color-text-3); font-size: 12px; line-height: 20px; }
 .part-uploaded { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; }
 .part-uploaded-name { color: var(--color-text-1); font-size: 14px; overflow-wrap: anywhere; }
+/* 已上传文件行（2026-11-23 对齐法规 .reg-file-*）：图标+文件名占满+× mini 按钮居右 */
+.part-file-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.part-file-item { display: flex; align-items: center; gap: 8px; min-height: 32px; color: var(--color-text-1); }
+.part-file-type { flex: none; color: var(--color-text-3); }
+.part-file-item-name { flex: 1; min-width: 0; font-size: 14px; line-height: 22px; overflow-wrap: anywhere; text-align: left; }
+.part-file-remove { flex: none; }
+.part-file-remove :deep(svg) { display: block; }
 .part-file-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .part-file-input { width: 100%; max-width: 320px; background: var(--app-surface); }
 .part-file-actions { display: flex; flex-wrap: wrap; gap: 12px; font-size: 14px; overflow-wrap: anywhere; }
 .part-file-name { overflow-wrap: anywhere; min-width: 0; }
+.part-brand-rich { overflow-wrap: anywhere; overflow-x: auto; max-width: 100%; }
+.part-brand-rich :deep(img) { max-width: 100%; height: auto; }
+.part-brand-rich :deep(table) { border-collapse: collapse; }
+.part-brand-rich :deep(td), .part-brand-rich :deep(th) { border: 1px solid var(--app-divider); padding: var(--mt-ds-space-2); }
 /* 基本信息：与证书详情一致的三列栅栏（16px gap），行内标签值 baseline 对齐 */
 .part-basic-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--mt-ds-space-4); margin: 0; text-align: left; }
 .part-basic-fields .app-detail-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--mt-ds-space-2); min-width: 0; }

@@ -114,7 +114,7 @@ function updateViewport() {}
       </nav>
       <div class="product-tools">
         <a-dropdown v-model:popup-visible="themeOpen" trigger="hover" position="br" @select="selectTheme">
-          <button class="shell-icon-button" type="button" :aria-label="t('shell.theme')" @click="themeOpen = true">
+          <button class="shell-icon-button" type="button" :aria-label="t('shell.themeSwitch')" @click="themeOpen = true">
             <IconMoon v-if="themeMode === 'dark'" :size="19" /><IconSun v-else :size="19" />
           </button>
           <template #content>
@@ -130,7 +130,7 @@ function updateViewport() {}
         </a-dropdown>
 
         <a-dropdown v-model:popup-visible="languageOpen" trigger="hover" position="br" @select="selectLocale">
-          <button class="shell-icon-button" type="button" :aria-label="t('shell.language')" @click="languageOpen = true">
+          <button class="shell-icon-button" type="button" :aria-label="t('shell.languageSwitch')" @click="languageOpen = true">
             <IconLanguage :size="19" />
           </button>
           <template #content>

@@ -381,7 +381,7 @@ function openDetail(task: TaskRecord) { router.push({ name: 'task-detail', param
 function openCreate() { createVisible.value = true; }
 /** 抽屉创建成功后回到第一页，新任务置顶可见 */
 function onTaskCreated() { setPage(1); }
-/** 编辑编排沿用本平台的编排占位页 */
+/** 编辑流程配置沿用本平台的流程配置占位页 */
 function onEditOrchestration() { router.push({ name: 'task-orchestration' }); }
 </script>
 
@@ -441,7 +441,6 @@ function onEditOrchestration() { router.push({ name: 'task-orchestration' }); }
       </div>
 
       <div class="tasks-toolbar">
-        <a-button class="app-btn-neutral" @click="router.push({ name: 'business-tasks' })">{{ t('businessTasks.list') }}</a-button>
         <a-button type="primary" size="large" @click="openCreate"><template #icon><IconPlus /></template>{{ t('tasks.create.title') }}</a-button>
           <ColumnSettingsPopover
             v-model:visible="columnSettingsVisible"

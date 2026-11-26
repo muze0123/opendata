@@ -1,8 +1,18 @@
 import { ref } from 'vue';
 export const REGION_CODES = ['asia', 'europe', 'northAmerica', 'southAmerica', 'africa', 'oceania'] as const;
+export type RegionCode = typeof REGION_CODES[number];
 /** 状态五态，与零部件/证书模块一致（2026-11-20 用户裁决）；文案由 regulations.statuses.* 提供，颜色由共享状态角色映射。 */
 export const STATUS_CODES = ['submitting', 'reviewing', 'completed', 'rejected', 'withdrawn'] as const;
-export const countries = { asia: 'china', europe: 'germany', northAmerica: 'usa', southAmerica: 'brazil', africa: 'southAfrica', oceania: 'australia' } as const;
+/** 区域→国家一对多映射（2026-11-23 用户裁决：每区列出全部常见国家，此前 countries 单值映射导致亚洲仅有中国）。
+    代码即 i18n 键 regulations.<code>，列表筛选/抽屉级联/导入校验共用此表。 */
+export const REGION_COUNTRIES: Record<RegionCode, string[]> = {
+  asia: ['china', 'japan', 'korea', 'india', 'singapore'],
+  europe: ['germany', 'france', 'uk', 'italy', 'spain'],
+  northAmerica: ['usa', 'canada', 'mexico'],
+  southAmerica: ['brazil', 'argentina', 'chile'],
+  africa: ['southAfrica', 'egypt', 'nigeria', 'kenya'],
+  oceania: ['australia', 'newZealand'],
+};
 /** 法规附件：name 为文件名，file 为本会话上传的原始 File（刷新后仅剩文件名，预览/下载时提示重传） */
 export interface RegulationAttachment { name: string; file?: File }
 export interface Regulation {

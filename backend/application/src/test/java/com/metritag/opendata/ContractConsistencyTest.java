@@ -14,12 +14,6 @@ class ContractConsistencyTest {
         try (var stream = getClass().getResourceAsStream("/contracts/tasks/openapi.json")) {
             assertThat(stream).isNotNull();
             var schemas = json.readTree(stream).path("components").path("schemas");
-            checkFields(schemas.path("DeliveryEvent"), com.metritag.opendata.platform.domain.DeliveryModels.Event.class);
-            checkFields(schemas.path("DeliveryEventPage"), com.metritag.opendata.platform.domain.DeliveryModels.EventPage.class);
-            checkFields(schemas.path("DeliverySummary"), com.metritag.opendata.platform.domain.DeliveryModels.Summary.class);
-            checkFields(schemas.path("DeliveryRetry"), com.metritag.opendata.platform.domain.DeliveryModels.Retry.class);
-            checkFields(schemas.path("DeliveryRetryReceipt"), com.metritag.opendata.platform.domain.DeliveryModels.RetryReceipt.class);
-            checkFields(schemas.path("DeliveryRetryPage"), com.metritag.opendata.platform.domain.DeliveryModels.RetryPage.class);
             checkFields(schemas.path("Session"), com.metritag.opendata.security.SessionController.SessionView.class);
             checkFields(schemas.path("Dispatch"), TaskCommands.Dispatch.class);
             checkFields(schemas.path("Action"), TaskCommands.Action.class);

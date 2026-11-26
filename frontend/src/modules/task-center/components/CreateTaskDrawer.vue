@@ -3,7 +3,7 @@
  * 新建任务抽屉：1:1 复刻「功能数据安全合规自评」项目的 CreateTaskDrawer。
  * 任务名称（必填 ≤50，全局唯一）/ 任务描述（≤200）/ 优先级单选（默认中）/
  * 截止时间（到日）/ 附件（≤5 个、单文件 ≤20MB、Word/Excel/PDF/PNG/JPEG）/
- * 任务编排（必选，选中后展示缩略流程预览 + 编辑编排入口）。
+ * 流程配置（必选，选中后展示缩略流程预览 + 编辑流程配置入口）。
  * 确定 → 任务进入列表且状态为待处理；取消 → 关闭抽屉不保存；脏表单离开需确认。
  * 差异仅在数据层：创建动作写入本平台 taskRecords，编排选项来自 data/orchestrations。
  * copySource 保留参考实现的「复制」预填能力，由宿主按需传入 TaskRecord。
@@ -97,7 +97,7 @@ function removeFile(uid: string | number) {
   fileItems.value = fileItems.value.filter((item) => item.uid !== uid);
 }
 
-/** 编辑编排：由宿主决定跳转或提示，抽屉侧保持参考实现的事件与引导反馈 */
+/** 编辑流程配置：由宿主决定跳转或提示，抽屉侧保持参考实现的事件与引导反馈 */
 function editOrchestration() {
   if (!form.orchestrationId) return;
   emit('editOrchestration', form.orchestrationId);
@@ -236,7 +236,7 @@ function cancelCreate() {
         </a-form-item>
       </div>
 
-      <!-- 区块B 任务编排：选择后按所选编排的审批流程节点展示缩略预览 -->
+      <!-- 区块B 流程配置：选择后按所选流程的审批节点展示缩略预览 -->
       <div class="task-drawer-group">
         <h2 class="task-section-heading">{{ t('taskCreate.sectionOrchestration') }}</h2>
         <a-form-item field="orchestrationId" required hide-label class="task-orchestration-item">
@@ -310,7 +310,7 @@ function cancelCreate() {
 .task-file-remove:hover { color: rgb(var(--danger-6)); background: var(--color-fill-2); }
 
 /* 缩略流程预览：节点卡片（头部=节点名浅蓝底，主体=审批人说明白底），
-   审核节点橙色头部 + 橙色描边强调；节点间竖向连接线；底部「编辑编排」整宽入口 */
+   审核节点橙色头部 + 橙色描边强调；节点间竖向连接线；底部「编辑流程配置」整宽入口 */
 .task-flow { display: flex; flex-direction: column; gap: 12px; width: 100%; margin-top: 4px; }
 .task-flow-nodes { display: flex; flex-direction: column; width: 100%; max-width: 440px; margin: 0 auto; }
 .task-flow-node { overflow: hidden; border: 1px solid var(--color-primary-light-2); border-radius: 4px; background: var(--app-surface); }

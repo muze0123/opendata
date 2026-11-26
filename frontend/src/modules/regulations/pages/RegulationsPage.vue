@@ -10,15 +10,15 @@ import { useTaskCenterStore } from '../../task-center/stores/taskCenter';
 import ColumnSettingsPopover, { type ColumnSettingsItem } from '../../../shared/components/ColumnSettingsPopover.vue';
 import { freezeEdgeColumns } from '../../../shared/tableColumns';
 import AppPagination from '../../../design/components/AppPagination.vue';
-import { regulationRows, initialRegulations, REGION_CODES, countries, type Regulation } from '../data/regulations';
+import { regulationRows, initialRegulations, REGION_CODES, REGION_COUNTRIES, STATUS_CODES, type Regulation, type RegionCode } from '../data/regulations';
 import { regulationLabel } from '../labels';
 const { t, locale } = useI18n();
 const taskCenter = useTaskCenterStore();
 const rows = regulationRows;
 const router = useRouter();
 const tab = ref('list');
-const filters = reactive({ keyword: '', region: '', country: '', creator: '', dates: [] as string[], updater: '', updatedDates: [] as string[] });
-const applied = ref({ keyword: '', region: '', country: '', creator: '', dates: [] as string[], updater: '', updatedDates: [] as string[] });
+const filters = reactive({ keyword: '', region: '', country: '', status: '', creator: '', dates: [] as string[], updater: '', updatedDates: [] as string[] });
+const applied = ref({ keyword: '', region: '', country: '', status: '', creator: '', dates: [] as string[], updater: '', updatedDates: [] as string[] });
 const page = ref(1);
 const pageSize = ref(10);
 const records = computed(() => rows.value.filter(row => {
@@ -26,6 +26,7 @@ const records = computed(() => rows.value.filter(row => {
   return (!keyword || row.code.toLowerCase().includes(keyword) || row.name.toLowerCase().includes(keyword))
     && (!applied.value.region || row.region === applied.value.region)
     && (!applied.value.country || row.country === applied.value.country)
+    && (!applied.value.status || row.status === applied.value.status)
     && (!applied.value.creator || row.creator === applied.value.creator)
     && (!applied.value.dates.length || row.date >= applied.value.dates[0]! && row.date <= applied.value.dates[1]!)
     && (!applied.value.updater || row.updater === applied.value.updater)
@@ -49,17 +50,17 @@ function changeSort(field: string, direction: string) {
 const pagedRecords = computed(() => sortedRecords.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value));
 watch([records, pageSize], () => { if (page.value > totalPages.value) page.value = totalPages.value; });
 function search(reset = false) {
-  if (reset) Object.assign(filters, { keyword: '', region: '', country: '', creator: '', dates: [], updater: '', updatedDates: [] });
+  if (reset) Object.assign(filters, { keyword: '', region: '', country: '', status: '', creator: '', dates: [], updater: '', updatedDates: [] });
   applied.value = { ...filters, dates: [...filters.dates], updatedDates: [...filters.updatedDates] }; page.value = 1;
 }
 /** 国家下拉始终可编辑（DESIGN.md · Filter control surface 不支持用禁用态占位级联）；
    未选区域时列出全部国家，选定区域后只列该区域国家。 */
 const countryOptions = computed(() => {
-  if (filters.region) return [countries[filters.region as keyof typeof countries]];
-  return REGION_CODES.map(r => countries[r as keyof typeof countries]);
+  if (filters.region) return REGION_COUNTRIES[filters.region as RegionCode];
+  return REGION_CODES.flatMap(r => REGION_COUNTRIES[r]);
 });
 /* ---------------------------------------- 筛选条件设置（DESIGN.md · List settings popover） */
-const FILTER_KEYS = ['keyword', 'region', 'country', 'creator', 'date', 'updater', 'updatedAt'] as const;
+const FILTER_KEYS = ['keyword', 'region', 'country', 'status', 'creator', 'date', 'updater', 'updatedAt'] as const;
 type FilterKey = (typeof FILTER_KEYS)[number];
 /** 创建人 / 更新人 / 更新时间默认不显示，可在筛选条件设置里开启 */
 const HIDDEN_FILTER_KEYS: FilterKey[] = ['creator', 'updater', 'updatedAt'];
@@ -73,6 +74,8 @@ const defaultFilterItems = computed<ColumnSettingsItem[]>(() => defaultFilterSet
 /** 创建人 / 更新人候选项来自当前法规数据，与列表列取值同源 */
 const creatorOptions = computed(() => [...new Set(rows.value.map(row => row.creator))].filter(Boolean));
 const updaterOptions = computed(() => [...new Set(rows.value.map(row => row.updater))].filter(Boolean));
+/** 状态候选项取五态枚举，文案与列表列/详情标签同源 t('regulations.statuses.*') */
+const statusOptions = computed(() => STATUS_CODES.map(code => ({ value: code, label: t(`regulations.statuses.${code}`) })));
 function clearFilter(key: FilterKey) {
   if (key === 'date') { filters.dates = []; applied.value.dates = []; }
   else if (key === 'updatedAt') { filters.updatedDates = []; applied.value.updatedDates = []; }
@@ -120,7 +123,9 @@ const horizontalWidth = computed(() => columns.value.reduce((total, column) => t
 const selected = ref<Regulation>();
 const visible = ref(false);
 const mode = ref<'create'|'edit'|'detail'|'review'>('detail');
-const form = reactive<Regulation>({ ...initialRegulations[0]!, attachments: [] });
+/** 抽屉表单：区域/国家初始为空（2026-11-23 用户裁决），故放宽 region 类型允许空串 */
+type RegulationForm = Omit<Regulation, 'region'> & { region: RegionCode | '' };
+const form = reactive<RegulationForm>({ ...initialRegulations[0]!, region: '', attachments: [] });
 const baseline = ref('');
 const error = ref('');
 const decision = ref('approve');
@@ -132,25 +137,21 @@ function chooseAttachment() {
   attachmentInput.value.click();
 }
 /* ---------------------------------------- 状态-操作矩阵（2026-11-20 用户裁决，与零部件模块一致） */
-type RowAction = 'detail' | 'edit' | 'copy' | 'delete' | 'withdraw' | 'approve';
+type RowAction = 'detail' | 'edit' | 'delete' | 'withdraw' | 'approve';
 /** 状态五态标签颜色：待提交/已撤回 灰、审批中 橙、已完成 绿、已驳回 红 */
 const STATUS_TAG_COLOR: Record<Regulation['status'], string> = { submitting: 'gray', reviewing: 'orange', completed: 'green', rejected: 'red', withdrawn: 'gray' };
 /** 视角：submitter=提交人 / approver=审批人；本地演示默认提交人视角 */
 const perspective = ref<'submitter' | 'approver'>('submitter');
 const ROW_ACTIONS: Record<Regulation['status'], RowAction[]> = {
-  submitting: ['detail', 'edit', 'copy', 'delete'],
-  reviewing: ['detail', 'withdraw', 'copy', 'delete'],
-  completed: ['detail', 'copy', 'delete'],
-  rejected: ['detail', 'edit', 'copy', 'delete'],
-  withdrawn: ['detail', 'edit', 'copy', 'delete'],
+  submitting: ['detail', 'edit', 'delete'],
+  reviewing: ['detail', 'withdraw', 'delete'],
+  completed: ['detail', 'delete'],
+  rejected: ['detail', 'edit', 'delete'],
+  withdrawn: ['detail', 'edit', 'delete'],
 };
 function rowActions(status: Regulation['status']): RowAction[] {
-  if (status === 'reviewing' && perspective.value === 'approver') return ['detail', 'approve', 'copy', 'delete'];
+  if (status === 'reviewing' && perspective.value === 'approver') return ['detail', 'approve', 'delete'];
   return ROW_ACTIONS[status];
-}
-/** 复制：预填当前记录内容，编号清空重新生成，附件不随复制带入，名称加「（副本）」 */
-function copyRow(row: Regulation) {
-  open('create', { ...structuredClone({ ...row, attachments: [...row.attachments] }), code: '', name: `${row.name}${t('regulations.copiedNameSuffix')}`, attachments: [] });
 }
 /** 撤回：审批中 → 已撤回（提交人视角） */
 function withdrawRow(row: Regulation) {
@@ -170,7 +171,6 @@ function overflowActions(status: Regulation['status']): RowAction[] { return row
 const ACTION_LABEL: Record<RowAction, () => string> = {
   detail: () => t('regulations.detail'),
   edit: () => t('regulations.edit'),
-  copy: () => t('regulations.copy'),
   delete: () => t('regulations.delete'),
   withdraw: () => t('regulations.withdraw'),
   approve: () => t('regulations.review'),
@@ -178,15 +178,19 @@ const ACTION_LABEL: Record<RowAction, () => string> = {
 const ACTION_HANDLER: Record<RowAction, (row: Regulation) => void> = {
   detail: row => open('detail', row),
   edit: row => open('edit', row),
-  copy: row => copyRow(row),
   delete: row => { deleteTarget.value = row; },
   withdraw: row => withdrawRow(row),
   approve: row => open('review', row),
 };
+/** 区域→国家级联：切换/清空区域时清空国家（DESIGN.md · 级联字段），国家选项只取当前区域的国家 */
+function countryOptionsOf(region: RegionCode | '') { return region ? REGION_COUNTRIES[region] : []; }
+function onRegionChange() { form.country = ''; }
+/** 国家下拉在未选区域时禁用；禁用态点击由外层 wrapper 触发此提示（Arco disabled select 吞掉自身事件） */
+function onCountryDisabledClick() { if (!form.region) Message.info(t('regulations.regionFirst')); }
 function open(value: typeof mode.value, row?: Regulation) {
   if (row && (value === 'detail' || value === 'review')) { void router.push({ name: 'regulation-detail', params: { id: row.id }, query: value === 'review' ? { review: '1' } : {} }); return; }
   mode.value = value; error.value = ''; decision.value = 'approve';
-  Object.assign(form, row ? structuredClone({ ...row, attachments: [...row.attachments] }) : { id: `LAW-${String(rows.value.length + 1).padStart(4,'0')}`, code: '', name: '', region: 'asia', country: 'china', date: new Date().toISOString().slice(0,10), creator: '张三', updater: '张三', updatedAt: new Date().toISOString().slice(0,10), version: 'V1.0.0', status: 'submitting', note: '', attachments: [], opinion: '' });
+  Object.assign(form, row ? structuredClone({ ...row, attachments: [...row.attachments] }) : { id: `LAW-${String(rows.value.length + 1).padStart(4,'0')}`, code: '', name: '', region: '', country: '', date: new Date().toISOString().slice(0,10), creator: '张三', updater: '张三', updatedAt: new Date().toISOString().slice(0,10), version: '', status: 'submitting', note: '', attachments: [], opinion: '' });
   baseline.value = JSON.stringify(form); visible.value = true;
 }
 function close() {
@@ -211,7 +215,8 @@ function submit() {
   persist({ draft: false });
 }
 function persist({ draft }: { draft: boolean }) {
-  const record = { ...form, code: form.code.trim(), name: form.name.trim(), attachments: [...form.attachments] };
+  // 草稿允许区域留空，但存储模型 Regulation.region 必须是合法枚举；空值回退到首个区域作内部占位。
+  const record: Regulation = { ...form, region: form.region || REGION_CODES[0], code: form.code.trim(), name: form.name.trim(), attachments: [...form.attachments] };
   if (mode.value === 'review') record.status = decision.value === 'approve' ? 'completed' : 'rejected';
   else if (editable.value) record.status = draft ? 'submitting' : 'reviewing';
   const index = rows.value.findIndex(row => row.id === record.id);
@@ -221,9 +226,10 @@ function persist({ draft }: { draft: boolean }) {
 }
 function upload(event: Event) {
   const input = event.target as HTMLInputElement;
-  for (const file of Array.from(input.files ?? [])) {
-    if (!/\.(docx?|pdf)$/i.test(file.name) || file.size > 20 * 1024 * 1024) { Message.error(t('regulations.fileError')); continue; }
-    if (!form.attachments.some(item => item.name === file.name)) form.attachments.push({ name: file.name, file });
+  const file = input.files?.[0];
+  if (file) {
+    if (!/\.(docx?|pdf)$/i.test(file.name) || file.size > 20 * 1024 * 1024) Message.error(t('regulations.fileError'));
+    else form.attachments = [{ name: file.name, file }];
   }
   input.value = '';
   // 上传成功后清除附件必传错误提示（2026-11-20 用户裁决：错误状态需随满足条件即时消解）
@@ -315,7 +321,7 @@ async function submitImport() {
     sheet.eachRow((row, index) => {
       if (index === 1) return;
       const [code, name, region, country, version, note] = transferKeys.map((_, column) => row.getCell(column + 1).text.trim());
-      if (!code || !name || !version || !REGION_CODES.includes(region as Regulation['region']) || countries[region as Regulation['region']] !== country || [...rows.value, ...added].some(item => item.code.toLowerCase() === code.toLowerCase())) throw new Error('record');
+      if (!code || !name || !version || !REGION_CODES.includes(region as RegionCode) || !REGION_COUNTRIES[region as RegionCode].includes(country) || [...rows.value, ...added].some(item => item.code.toLowerCase() === code.toLowerCase())) throw new Error('record');
       added.push({ id: crypto.randomUUID(), code, name, region: region as Regulation['region'], country, version, note, date: new Date().toISOString().slice(0,10), creator: '张三', updater: '张三', updatedAt: new Date().toISOString().slice(0,10), status: 'submitting', attachments: [], opinion: '' });
     });
     if (!added.length) throw new Error('empty');
@@ -338,6 +344,7 @@ async function submitImport() {
           <a-input v-if="key === 'keyword'" v-model="filters.keyword" class="app-filter-control" allow-clear :aria-label="t('regulations.keyword')" :placeholder="t('regulations.placeholderKeyword')" />
           <a-select v-else-if="key === 'region'" :model-value="filters.region || undefined" @update:model-value="filters.region = String($event ?? '')" class="app-filter-control" allow-clear :aria-label="t('regulations.region')" :placeholder="t('regulations.placeholderRegion')" @change="filters.country = ''"><a-option v-for="code in REGION_CODES" :key="code" :value="code">{{ regulationLabel(t,code) }}</a-option></a-select>
           <a-select v-else-if="key === 'country'" :model-value="filters.country || undefined" @update:model-value="filters.country = String($event ?? '')" class="app-filter-control" allow-clear :aria-label="t('regulations.country')" :placeholder="t('regulations.placeholderCountry')"><a-option v-for="c in countryOptions" :key="c" :value="c">{{ regulationLabel(t,c) }}</a-option></a-select>
+          <a-select v-else-if="key === 'status'" :model-value="filters.status || undefined" @update:model-value="filters.status = String($event ?? '')" class="app-filter-control" allow-clear :aria-label="t('regulations.status')" :placeholder="t('regulations.select')"><a-option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</a-option></a-select>
           <a-select v-else-if="key === 'creator'" :model-value="filters.creator || undefined" @update:model-value="filters.creator = String($event ?? '')" class="app-filter-control" allow-clear :aria-label="t('regulations.creator')" :placeholder="t('regulations.select')"><a-option v-for="name in creatorOptions" :key="name" :value="name">{{ name }}</a-option></a-select>
           <a-select v-else-if="key === 'updater'" :model-value="filters.updater || undefined" @update:model-value="filters.updater = String($event ?? '')" class="app-filter-control" allow-clear :aria-label="t('regulations.updater')" :placeholder="t('regulations.select')"><a-option v-for="name in updaterOptions" :key="name" :value="name">{{ name }}</a-option></a-select>
           <a-range-picker v-else-if="key === 'date'" v-model="filters.dates" class="app-filter-control" :aria-label="t('regulations.date')" :placeholder="[t('regulations.startDate'), t('regulations.endDate')]" />
@@ -394,16 +401,20 @@ async function submitImport() {
         </div>
       </template>
       <template v-else>
-        <section class="editor-block"><h3>{{ t('regulations.basic') }}</h3><a-form :model="form" layout="vertical" class="reg-form" :disabled="mode === 'review'">
+        <section class="editor-block"><a-form :model="form" layout="vertical" class="reg-form" :disabled="mode === 'review'">
           <a-form-item v-if="mode !== 'create'"><template #label><span class="app-field-label">{{ t('regulations.id') }}</span></template><a-input v-model="form.id" disabled /></a-form-item>
           <a-form-item><template #label><span class="required">*</span><span class="app-field-label">{{ t('regulations.code') }}</span></template><a-input v-model="form.code" :max-length="100" show-word-limit :placeholder="t('regulations.placeholderCode')" /></a-form-item>
           <a-form-item><template #label><span class="required">*</span><span class="app-field-label">{{ t('regulations.name') }}</span></template><a-input v-model="form.name" :max-length="100" show-word-limit :placeholder="t('regulations.placeholderName')" /></a-form-item>
-          <a-form-item><template #label><span class="required">*</span><span class="app-field-label">{{ t('regulations.version') }}</span></template><a-input v-model="form.version" :max-length="20" show-word-limit :placeholder="t('regulations.placeholderVersion')" /></a-form-item>
-          <a-form-item><template #label><span class="required">*</span><span class="app-field-label">{{ t('regulations.region') }}</span></template><a-select v-model="form.region" :placeholder="t('regulations.select')" @change="form.country = countries[form.region]"><a-option v-for="code in REGION_CODES" :key="code" :value="code">{{ regulationLabel(t,code) }}</a-option></a-select></a-form-item>
-          <a-form-item><template #label><span class="required">*</span><span class="app-field-label">{{ t('regulations.country') }}</span></template><a-select v-model="form.country" :placeholder="t('regulations.select')"><a-option :value="countries[form.region]">{{ regulationLabel(t,countries[form.region]) }}</a-option></a-select></a-form-item>
+          <a-form-item><template #label><span class="required">*</span><span class="app-field-label">{{ t('regulations.version') }}</span></template><a-input v-model="form.version" :max-length="100" show-word-limit :placeholder="t('regulations.placeholderVersion')" /></a-form-item>
+          <a-form-item><template #label><span class="required">*</span><span class="app-field-label">{{ t('regulations.region') }}</span></template><a-select v-model="form.region" allow-search allow-clear :placeholder="t('regulations.placeholderRegion')" :aria-label="t('regulations.region')" @change="onRegionChange"><a-option v-for="code in REGION_CODES" :key="code" :value="code">{{ regulationLabel(t,code) }}</a-option></a-select></a-form-item>
+          <a-form-item><template #label><span class="required">*</span><span class="app-field-label">{{ t('regulations.country') }}</span></template><div class="reg-country-cell" :class="{ 'is-disabled-gate': !form.region }" @click="onCountryDisabledClick"><a-select v-model="form.country" :disabled="!form.region" allow-search allow-clear :placeholder="t('regulations.placeholderCountry')" :aria-label="t('regulations.country')"><a-option v-for="code in countryOptionsOf(form.region)" :key="code" :value="code">{{ regulationLabel(t,code) }}</a-option></a-select></div></a-form-item>
           <a-form-item><template #label><span class="app-field-label">{{ t('regulations.note') }}</span></template><a-textarea v-model="form.note" :max-length="200" show-word-limit :placeholder="t('regulations.placeholderNote')" /></a-form-item>
+          <a-form-item><template #label><span class="required">*</span><span class="app-field-label">{{ t('regulations.regulationFile') }}</span></template>
+            <div class="reg-file-field"><template v-if="editable"><input ref="attachmentInput" type="file" accept=".doc,.docx,.pdf" hidden @change="upload"><div v-if="!form.attachments.length" class="reg-file-upload"><a-button class="app-btn-neutral" @click="chooseAttachment">{{ t('regulations.upload') }}</a-button><span class="reg-file-help">{{ t('regulations.fileHelp') }}</span></div></template>
+              <div v-if="form.attachments.length" class="reg-file-list"><div v-for="(attachment,index) in form.attachments" :key="attachment.name" class="reg-file-item"><component :is="attachmentIcon(attachment.name)" :size="16" class="reg-file-type" /><span class="reg-file-name">{{ attachment.name }}</span><a-button v-if="editable" type="text" size="mini" class="reg-file-remove" :aria-label="t('regulations.remove')" @click="form.attachments.splice(index,1)"><template #icon><IconClose :size="14" /></template></a-button></div></div>
+            </div>
+          </a-form-item>
         </a-form></section>
-        <section class="reg-attach"><h3>{{ t('regulations.attachments') }}</h3><template v-if="editable"><input ref="attachmentInput" type="file" multiple accept=".doc,.docx,.pdf" hidden @change="upload"><div class="reg-attach-upload"><a-button class="app-btn-neutral" @click="chooseAttachment">{{ t('regulations.upload') }}</a-button><span class="reg-attach-help">{{ t('regulations.fileHelp') }}</span></div></template><div v-if="form.attachments.length" class="reg-attach-list"><div v-for="(attachment,index) in form.attachments" :key="attachment.name" class="reg-attach-item"><component :is="attachmentIcon(attachment.name)" :size="16" class="reg-attach-type" /><span class="reg-attach-name">{{ attachment.name }}</span><a-button v-if="editable" type="text" size="mini" class="reg-attach-remove" :aria-label="t('regulations.remove')" @click="form.attachments.splice(index,1)"><template #icon><IconClose :size="14" /></template></a-button></div></div></section>
         <section v-if="mode === 'review'" class="reg-review"><h3>{{ t('regulations.review') }}</h3>
           <div class="reg-review-field"><span class="app-field-label">{{ t('regulations.decision') }}</span><a-radio-group v-model="decision"><a-radio value="approve">{{ t('regulations.approve') }}</a-radio><a-radio value="reject">{{ t('regulations.reject') }}</a-radio></a-radio-group></div>
           <div class="reg-review-field"><span class="required">*</span><span class="app-field-label">{{ t('regulations.opinion') }}</span><a-textarea v-model="form.opinion" :max-length="2000" show-word-limit :placeholder="t('regulations.placeholderOpinion')" /></div>
@@ -481,6 +492,11 @@ section label { display:block; margin-bottom:16px; }
 .reg-form :deep(.arco-input-wrapper),
 .reg-form :deep(.arco-select-view),
 .reg-form :deep(.arco-textarea-wrapper) { width: 100%; }
+/* 国家级联禁用态：Arco disabled select 吞掉自身 click，wrapper 透传点击以提示「请先选择区域」；
+   禁用视觉（Fill-2 灰底）仍由 Arco select 自身渲染，wrapper 不改背景。 */
+.reg-country-cell { width: 100%; }
+.reg-country-cell.is-disabled-gate { cursor: not-allowed; }
+.reg-country-cell.is-disabled-gate :deep(.arco-select-view) { pointer-events: none; }
 .required { color: var(--app-color-danger); margin-right: 4px; }
 .reg-detail .app-detail-list { margin-bottom: 16px; }
 .reg-attach, .editor-block { padding:var(--mt-ds-space-4); background:var(--app-surface); border-radius:var(--mt-ds-control-radius); margin-bottom:var(--mt-ds-space-4); }
@@ -495,6 +511,16 @@ section label { display:block; margin-bottom:16px; }
 .reg-attach-name { flex: 1; min-width: 0; font-size: 14px; line-height: 22px; overflow-wrap: anywhere; }
 .reg-attach-remove { flex: none; }
 .reg-attach-remove :deep(svg) { display: block; }
+/* 表单内「法规文件」必填字段：上传按钮 + 格式提示同排，文件行类型图标 + 文件名 + 移除同排，几何与原附件一致 */
+.reg-file-field { width: 100%; }
+.reg-file-upload { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.reg-file-help { color: var(--color-text-3); font-size: 14px; line-height: 22px; }
+.reg-file-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.reg-file-item { display: flex; align-items: center; gap: 8px; min-height: 32px; color: var(--color-text-1); }
+.reg-file-type { flex: none; color: var(--color-text-3); }
+.reg-file-name { flex: 1; min-width: 0; font-size: 14px; line-height: 22px; overflow-wrap: anywhere; }
+.reg-file-remove { flex: none; }
+.reg-file-remove :deep(svg) { display: block; }
 .reg-empty { color: var(--color-text-3); margin: 0; }
 .reg-review-field { margin-bottom: 16px; }
 .reg-review-field .app-field-label { display: block; margin-bottom: 4px; }

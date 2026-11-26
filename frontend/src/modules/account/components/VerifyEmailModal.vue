@@ -35,7 +35,7 @@ function sendCode() {
 
 function submit() {
   if (!code.value.trim()) {
-    error.value = t('account.code') + t('designSystem.required');
+    error.value = t('account.required', { field: t('account.code') });
     return;
   }
   if (code.value.trim() !== DEMO_CODE) {

@@ -8,7 +8,6 @@ export function cachePartDetail(part: Part): void {
   const safe: Part = {
     ...part,
     certificateFile: part.certificateFile ? { name: part.certificateFile.name } : undefined,
-    brandFile: part.brandFile ? { name: part.brandFile.name } : undefined,
   };
   localStorage.setItem(`${prefix}${part.id}`, JSON.stringify(safe));
 }

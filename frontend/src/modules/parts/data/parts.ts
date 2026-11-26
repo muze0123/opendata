@@ -60,20 +60,24 @@ export interface Part {
   name: string;
   /** 法规编号（必填，下拉显示编号 + 名称）。 */
   regulationCode: string;
-  /** 零部件证书输入框值（必填 ≤100）。 */
-  certificate: string;
+  /** 零部件证书：纯附件上传（2026-11-23 用户裁决，去掉输入框）。 */
   certificateFile?: PartAttachment;
-  /** 零部件证书号（必填 ≤100）。 */
+  /** 零部件证书编号（必填 ≤100）。 */
   certificateNo: string;
   /** 零部件证书版本号（必填 ≤20）。 */
   certificateVersion: string;
-  /** 证书签发日期（必填，单选日期）。 */
+  /** 签发日期（必填，单选日期）。 */
   issueDate: string;
+  /** 签发机构（必填 ≤100），2026-11-23 新增。 */
+  issuer: string;
+  /** 认证机构（必填 ≤100），2026-11-23 新增。 */
+  agency: string;
+  /** 有效期至（必填，单选日期），2026-11-23 新增。 */
+  validUntil: string;
   /** 型号（必填 ≤100）。 */
   model: string;
-  /** 商标输入框值（必填 ≤100）。 */
+  /** 商标：富文本 HTML（2026-11-23 用户裁决，由输入框改为 wangEditor），无上传附件。 */
   brand: string;
-  brandFile?: PartAttachment;
   /** 版本说明（选填 ≤200）。 */
   versionNote: string;
   /** 证书状态；空串表示草稿，尚未提交审批。 */
@@ -117,8 +121,9 @@ export function taskTime(): string {
 
 export function emptyPart(): Part {
   return {
-    id: '', code: '', name: '', regulationCode: '', certificate: '', certificateNo: '',
-    certificateVersion: '', issueDate: '', model: '', brand: '', versionNote: '',
+    id: '', code: '', name: '', regulationCode: '', certificateNo: '',
+    certificateVersion: '', issueDate: '', issuer: '', agency: '', validUntil: '',
+    model: '', brand: '', versionNote: '',
     status: '', creator: CURRENT_USER, createdAt: '', updater: CURRENT_USER, updatedAt: '',
     events: [], history: [], relatedTasks: [],
   };

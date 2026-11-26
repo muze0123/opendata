@@ -41,8 +41,6 @@ public class SecurityConfiguration {
         return http.csrf(csrf -> csrf.disable()).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/opendata/v1/platform/task-events", "/api/opendata/v1/platform/task-events/**").hasAuthority("SCOPE_opendata.platform.events.read")
-                .requestMatchers(HttpMethod.POST, "/api/opendata/v1/platform/task-events/*/retries").hasAuthority("SCOPE_opendata.platform.events.retry")
                 .requestMatchers(HttpMethod.POST, "/api/opendata/v1/tasks").hasAuthority("SCOPE_opendata.tasks.dispatch")
                 .requestMatchers(HttpMethod.POST, "/api/opendata/v1/tasks/*/actions").hasAnyAuthority("SCOPE_opendata.tasks.write", "SCOPE_opendata.tasks.dispatch")
                 .requestMatchers(HttpMethod.GET, "/api/opendata/v1/session", "/api/opendata/v1/tasks", "/api/opendata/v1/tasks/**").hasAuthority("SCOPE_opendata.tasks.read")
@@ -75,7 +73,7 @@ public class SecurityConfiguration {
                 boolean valid = supplied != null && MessageDigest.isEqual(("Bearer " + token).getBytes(StandardCharsets.UTF_8), supplied.getBytes(StandardCharsets.UTF_8));
                 if (valid) {
                     var principal = new RequestIdentity.LocalUser(request.getHeader("X-Dev-Tenant"), request.getHeader("X-Dev-User"));
-                    var scopes = List.of("opendata.tasks.read", "opendata.tasks.write", "opendata.tasks.dispatch", "opendata.platform.events.read", "opendata.platform.events.retry").stream().map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope)).toList();
+                    var scopes = List.of("opendata.tasks.read", "opendata.tasks.write", "opendata.tasks.dispatch").stream().map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope)).toList();
                     SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(principal, null, scopes));
                 }
                 chain.doFilter(request, response);

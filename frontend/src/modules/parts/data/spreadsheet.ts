@@ -2,9 +2,10 @@ import ExcelJS from 'exceljs';
 import { emptyPart, seedPart, type Part } from './parts';
 
 /** 导入导出列与新增/编辑抽屉字段保持一致；附件不随表格传输，需在各记录中单独上传。 */
+/** 导入导出列与抽屉字段保持一致（2026-11-23 重排）；附件与富文本 HTML 不随表格传输。 */
 export const PART_SHEET_FIELDS = [
-  'code', 'name', 'regulationCode', 'certificate', 'certificateNo',
-  'certificateVersion', 'issueDate', 'model', 'brand', 'versionNote',
+  'code', 'regulationCode', 'name', 'model', 'certificateNo', 'certificateVersion',
+  'issueDate', 'issuer', 'agency', 'validUntil', 'versionNote',
 ] as const;
 
 export async function exportParts(records: Part[], labels: string[]): Promise<Blob> {
@@ -37,7 +38,7 @@ export async function importParts(file: File, current: Part[], labels: string[][
     if (!found) throw new Error('invalid');
     return found;
   });
-  const required = ['code', 'name', 'regulationCode', 'certificate', 'certificateNo', 'certificateVersion', 'issueDate', 'model', 'brand'] as const;
+  const required = ['code', 'name', 'regulationCode', 'certificateNo', 'certificateVersion', 'issueDate', 'issuer', 'agency', 'validUntil', 'model'] as const;
   const records: Part[] = [];
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;

@@ -39,7 +39,7 @@ const rows = computed(() => numberingRules.map(rule => ({
     <div class="table-region"><a-table :columns="columns" :data="visibleRows" row-key="id" :pagination="false"
       :bordered="false" :scroll="{ x: 1150 }">
       <template #location="{ record }">
-        {{ record.locationKeys.map((key: string) => t(key)).join(' - ') }}
+        {{ record.locationKeys.map((key: string) => t(key)).join(t('numbering.locationSeparator')) }}
       </template>
       <template #empty>
         <a-empty :description="t('numbering.empty')">

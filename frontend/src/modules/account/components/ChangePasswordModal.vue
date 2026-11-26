@@ -29,10 +29,10 @@ watch(
 
 function submit() {
   const next3 = { current: '', next: '', confirm: '' } as typeof errors.value;
-  if (!current.value.trim()) next3.current = t('account.currentPassword') + t('designSystem.required');
-  if (!next.value.trim()) next3.next = t('account.newPassword') + t('designSystem.required');
+  if (!current.value.trim()) next3.current = t('account.required', { field: t('account.currentPassword') });
+  if (!next.value.trim()) next3.next = t('account.required', { field: t('account.newPassword') });
   else if (next.value.trim().length < 6) next3.next = t('userManagement.form.validation.passwordTooShort');
-  if (!confirm.value.trim()) next3.confirm = t('account.confirmPassword') + t('designSystem.required');
+  if (!confirm.value.trim()) next3.confirm = t('account.required', { field: t('account.confirmPassword') });
   else if (next.value.trim() && confirm.value.trim() !== next.value.trim()) next3.confirm = t('userManagement.form.validation.passwordMismatch');
   errors.value = next3;
   if (next3.current || next3.next || next3.confirm) return;
